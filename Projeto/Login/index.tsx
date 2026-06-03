@@ -39,7 +39,7 @@ interface LoginResponse {
   message?: string;
 }
 
-const API_URL = "http://10.0.10.177:8000";
+const API_URL = "http://10.0.10.209:8080";
 
 export default function Login() {
   const navigation = useNavigation<NavigationProps>();

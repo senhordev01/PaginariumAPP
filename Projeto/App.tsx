@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import Cadastro from './Cadastro';
-import Inicio from './Pagina_Inicial';
+import Inicio from './Pagina_Adm';
 import Login from './Login';
 
 import { NavigationContainer } from '@react-navigation/native';

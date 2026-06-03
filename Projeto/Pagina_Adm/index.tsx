@@ -90,6 +90,62 @@ export default function Inicio() {
     carregarLivros();
   }, []);
 
+  async function salvarLivro() {
+    if (!nome.trim() || !genero.trim()) return;
+
+    try {
+      if (editId !== null) {
+        await fetch(`${API}/${editId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ nome, genero }),
+        });
+      } else {
+        await fetch(API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ nome, genero }),
+        });
+      }
+
+      setNome("");
+      setGenero("");
+      setEditId(null);
+      setModal(false);
+
+      await carregarLivros();
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  async function deletar(id: number) {
+    try {
+      if (!id) {
+        console.log("ID inválido:", id);
+        return;
+      }
+
+      await fetch(`${API}/${id}`, {
+        method: "DELETE",
+      });
+
+      await carregarLivros();
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  function editar(item: Livro) {
+    setNome(item.nome);
+    setGenero(item.genero);
+    setEditId(item.id);
+    setModal(true);
+  }
 
   const isDark = tema === "black";
 

@@ -36,23 +36,21 @@ interface CadastroResponse {
   };
 }
 
-const API_URL = "http://10.0.10.177:8000";
+const API_URL = "http://10.0.10.209:8080";
 
 export default function Cadastro() {
   const navigation = useNavigation<NavigationProps>();
 
-  const [nome, setNome] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [confirmar_email, setConfirmar_Email] =
-    useState<string>("");
-  const [senha, setSenha] = useState<string>("");
-  const [confirmar_senha, setConfirmar_Senha] =
-    useState<string>("");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [confirmar_email, setConfirmar_Email] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmar_senha, setConfirmar_Senha] = useState("");
 
-  const [erro, setErro] = useState<string>("");
-  const [janelaModal, setModal] = useState<boolean>(false);
+  const [erro, setErro] = useState("");
+  const [janelaModal, setModal] = useState(false);
 
-  async function cadastro(): Promise<void> {
+  async function cadastro() {
     try {
       if (
         !nome.trim() ||
@@ -78,35 +76,45 @@ export default function Cadastro() {
         return;
       }
 
-      const response = await fetch(
-        `${API_URL}/usuarios`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            nome,
-            email,
-            senha,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/cadastro`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome,
+          email,
+          senha,
+        }),
+      });
 
-      const data: CadastroResponse =
-        await response.json();
+      // proteção contra HTML vindo do backend
+      const text = await response.text();
+      let data: CadastroResponse;
 
-      if (!response.ok) {
-        setErro(
-          data.message || "Erro ao cadastrar"
-        );
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setErro("Servidor retornou resposta inválida");
         setModal(true);
         return;
       }
 
-      navigation.navigate("Login");
-    } catch (erro) {
-      console.log("ERRO:", erro);
+      if (!response.ok) {
+        setErro(data.message || "Erro ao cadastrar");
+        setModal(true);
+        return;
+      }
+
+      navigation.navigate("Inicio", {
+        usuario: {
+          nome: data.usuario?.nome || nome,
+          email: data.usuario?.email || email,
+        },
+      });
+
+    } catch (error) {
+      console.log("ERRO:", error);
       setErro("Erro de conexão com o servidor");
       setModal(true);
     }
@@ -115,103 +123,27 @@ export default function Cadastro() {
   return (
     <>
       <KeyboardAvoidingView
-        behavior={
-          Platform.OS === "ios"
-            ? "padding"
-            : "height"
-        }
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <ScrollView
-          contentContainerStyle={{
-            flexGrow: 1,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#e9eaecde",
-              flex: 1,
-            }}
-          >
-            <View style={estilo.container}>
-              <View style={estilo.Corpo_Elemento}>
-                <Text
-                  style={{
-                    marginBottom: 50,
-                    fontSize: 40,
-                    fontWeight: "bold",
-                  }}
-                >
-                  Cadastro
-                </Text>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={{ flex: 1, backgroundColor: "#e9eaecde" }}>
+            <View style={styles.container}>
+              <View style={styles.card}>
+                <Text style={styles.title}>Cadastro</Text>
 
-                <TextInput
-                  placeholder="Digite seu nome..."
-                  style={estilo.Input}
-                  value={nome}
-                  onChangeText={setNome}
-                />
+                <TextInput placeholder="Nome" style={styles.input} value={nome} onChangeText={setNome} />
+                <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
+                <TextInput placeholder="Confirmar Email" style={styles.input} value={confirmar_email} onChangeText={setConfirmar_Email} />
+                <TextInput placeholder="Senha" secureTextEntry style={styles.input} value={senha} onChangeText={setSenha} />
+                <TextInput placeholder="Confirmar Senha" secureTextEntry style={styles.input} value={confirmar_senha} onChangeText={setConfirmar_Senha} />
 
-                <TextInput
-                  placeholder="Digite seu email..."
-                  keyboardType="email-address"
-                  style={estilo.Input}
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                />
-
-                <TextInput
-                  placeholder="Confirme seu email..."
-                  keyboardType="email-address"
-                  style={estilo.Input}
-                  value={confirmar_email}
-                  onChangeText={
-                    setConfirmar_Email
-                  }
-                  autoCapitalize="none"
-                />
-
-                <TextInput
-                  placeholder="Digite sua senha..."
-                  secureTextEntry
-                  style={estilo.Input}
-                  value={senha}
-                  onChangeText={setSenha}
-                />
-
-                <TextInput
-                  placeholder="Confirme sua senha..."
-                  secureTextEntry
-                  style={estilo.Input}
-                  value={confirmar_senha}
-                  onChangeText={
-                    setConfirmar_Senha
-                  }
-                />
-
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate("Login")
-                  }
-                >
-                  <Text
-                    style={estilo.Texto_Marcado}
-                  >
-                    Faça seu Login
-                  </Text>
+                <TouchableOpacity onPress={cadastro} style={styles.button}>
+                  <Text style={styles.buttonText}>Cadastrar</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={cadastro}
-                >
-                  <Text
-                    style={
-                      estilo.Botao_Cadastro
-                    }
-                  >
-                    Cadastrar-se
-                  </Text>
+                <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                  <Text style={styles.link}>Fazer Login</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -219,38 +151,15 @@ export default function Cadastro() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={janelaModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setModal(false)
-        }
-      >
-        <View style={modalStyles.fundo}>
-          <View style={modalStyles.caixa}>
-            <Text
-              style={{
-                color: "red",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
+      <Modal visible={janelaModal} transparent animationType="fade">
+        <View style={modal.fundo}>
+          <View style={modal.caixa}>
+            <Text style={{ color: "red", marginBottom: 20, textAlign: "center" }}>
               {erro}
             </Text>
 
-            <TouchableOpacity
-              onPress={() =>
-                setModal(false)
-              }
-            >
-              <Text
-                style={
-                  modalStyles.botaoFechar
-                }
-              >
-                Fechar
-              </Text>
+            <TouchableOpacity onPress={() => setModal(false)}>
+              <Text style={modal.botao}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -259,26 +168,30 @@ export default function Cadastro() {
   );
 }
 
-const estilo = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
 
-  Corpo_Elemento: {
-    backgroundColor: "white",
+  card: {
     width: "90%",
-    maxWidth: 600,
-    minHeight: 500,
-    marginTop: 80,
+    maxWidth: 500,
+    backgroundColor: "white",
+    padding: 20,
     borderRadius: 20,
     alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
   },
 
-  Input: {
-    width: 300,
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+
+  input: {
+    width: "100%",
     height: 50,
     borderRadius: 10,
     textAlign: "center",
@@ -287,28 +200,29 @@ const estilo = StyleSheet.create({
     marginBottom: 10,
   },
 
-  Botao_Cadastro: {
+  button: {
     backgroundColor: "blue",
-    width: 300,
-    height: 40,
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 20,
-    borderRadius: 20,
-    textAlign: "center",
-    lineHeight: 40,
+    width: "100%",
+    height: 45,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 10,
   },
 
-  Texto_Marcado: {
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+
+  link: {
+    marginTop: 15,
     color: "#0c9dc2",
     fontWeight: "bold",
-    textAlign: "center",
-    margin: 20,
   },
 });
 
-const modalStyles = StyleSheet.create({
+const modal = StyleSheet.create({
   fundo: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -324,7 +238,7 @@ const modalStyles = StyleSheet.create({
     alignItems: "center",
   },
 
-  botaoFechar: {
+  botao: {
     backgroundColor: "red",
     color: "white",
     padding: 10,
