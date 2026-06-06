@@ -25,6 +25,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Lua from "../assets/Lua_PixelArt.png";
 import Sol from "../assets/Sol_PixelArt.png";
 import Logout from "../assets/Logout.png";
+import Opcoes_Clara from "../assets/Opcoes_Clara.png";
+import Opcoes_Escura from "../assets/Opcoes_Escura.png";
+import Fechar from "../assets/Fechar.png";
+import Lupa from "../assets/Lupa.png";
 
 const API = "http://10.0.10.209:8080/livros";
 
@@ -60,14 +64,14 @@ export default function Inicio() {
 
   const [tema, setTema] = useState("#e9eaecde");
   const [modal, setModal] = useState(false);
-
+  const [menuVisible, setMenuVisible] = useState(false);
   const [livros, setLivros] = useState<Livro[]>([]);
 
   const [nome, setNome] = useState("");
   const [genero, setGenero] = useState("");
 
   const [editId, setEditId] = useState<number | null>(null);
-
+  
   function Tema_Escuro() {
     setTema("black");
   }
@@ -130,7 +134,7 @@ export default function Inicio() {
                   {item.genero}
                 </Text>
 
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                {/* <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
                   <TouchableOpacity style={styles.btnEditar} onPress={() => editar(item)}>
                     <Text style={{ color: "white" }}>Editar</Text>
                   </TouchableOpacity>
@@ -138,42 +142,156 @@ export default function Inicio() {
                   <TouchableOpacity style={styles.btnDelete} onPress={() => deletar(item.id)}>
                     <Text style={{ color: "white" }}>Deletar</Text>
                   </TouchableOpacity>
-                </View>
+                </View> */}
               </View>
             )}
           />
 
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => {
-              setNome("");
-              setGenero("");
-              setEditId(null);
-              setModal(true);
-            }}
-          >
-            <Text style={{ color: "white", fontSize: 45, fontWeight:"bold", flex:1, alignItems:"center", justifyContent:"center" }}>+</Text>
-          </TouchableOpacity>
-
-          <Modal visible={modal} transparent animationType="slide">
-            <View style={styles.modal}>
-              <View style={styles.modalBox}>
-                <TextInput placeholder="Nome" value={nome} onChangeText={setNome} style={styles.input} />
-                <TextInput placeholder="Gênero" value={genero} onChangeText={setGenero} style={styles.input} />
-
-                <TouchableOpacity style={styles.btnSalvar} onPress={salvarLivro}>
-                  <Text style={{ color: "white" }}>
-                    {editId !== null ? "Atualizar" : "Salvar"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => setModal(false)}>
-                  <Text style={{ marginTop: 10, color: "#cc1f00" }}>Fechar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
         </View>
+
+        <View style={{ position: "absolute", top:100, backgroundColor: tema === "#e9eaecde" ? "white" : "#333", width:"100%", justifyContent:"center", height:80}}>
+            <TouchableOpacity
+              style={{
+                backgroundColor:
+                  tema === "#e9eaecde" ? "white" : "#333", 
+                padding: 10,
+                width: 60,
+                left:15,
+              }}
+              onPress={() => setMenuVisible(true)}
+            >
+              <Image
+                source={tema === "#e9eaecde" ? Opcoes_Escura : Opcoes_Clara}
+                style={styles.icon}
+              />
+            </TouchableOpacity>
+
+            <Modal
+              visible={menuVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setMenuVisible(false)}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "white",
+                    width: 500,
+                    height:"100%",
+                    padding: 20,
+                    position:"absolute",
+                    top:100,
+                    left:0,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "bold",
+                      marginBottom: 70,
+                    }}
+                  >
+                    Menu
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      backgroundColor: "#ad000e",
+                      borderRadius: 8,
+                      marginBottom: 30,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "white",
+                        textAlign: "center",
+                      }}
+                    >
+                      Configurações
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      backgroundColor: "#ad000e",
+                      borderRadius: 8,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "white",
+                        textAlign: "center",
+                      }}
+                    >
+                      Meus Livros
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={() => setMenuVisible(false)}
+                    style={{
+                      padding: 10,
+                      position:"absolute", 
+                      top: 5,
+                      right: 5
+                    }}
+                  >
+        
+                      <Image source={Fechar} style={{width:30,height:30}}/>
+
+                  </TouchableOpacity>
+
+                </View>
+              </View>
+            </Modal>
+            <View style={{alignItems:"center"}}>
+              <TextInput
+                placeholder="Digite o nome do livro ou Genero dele..."
+                style={styles.input}
+              />
+                <TouchableOpacity
+                   style={{
+                    position: "absolute",
+                    top: 40,  
+                    marginStart: 395,
+                    width: 50,
+                    height: 50,
+                    backgroundColor: "white",
+                    justifyContent: "center",
+                    alignItems: "center",
+
+                    borderTopWidth: 2,
+                    borderRightWidth: 2,
+                    borderBottomWidth: 2,
+
+                    borderTopColor: "black",
+                    borderRightColor: "black",
+                    borderBottomColor: "black",
+
+                    borderLeftWidth: 0,
+                  }}
+                >
+                <Image source={Lupa} style={{ width: 30, height: 30 }} />
+              </TouchableOpacity>
+            </View>
+            
+          </View>
+
+         
+        
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -183,7 +301,7 @@ const styles = StyleSheet.create({
   navbar: {
     width: "100%",
     height: 100,
-    backgroundColor: "blue",
+    backgroundColor: "#ad000e",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -230,10 +348,20 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    borderWidth: 1,
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 8,
+    width:350,
+    height: 50,
+    textAlign: "center",
+    borderColor: "black",
+    borderWidth: 2,
+    position:"absolute",
+    top:40,
+    backgroundColor:"white",
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+
+
   },
 
   btnSalvar: {
@@ -243,15 +371,4 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
-  btnEditar: {
-    backgroundColor: "orange",
-    padding: 8,
-    borderRadius: 5,
-  },
-
-  btnDelete: {
-    backgroundColor: "red",
-    padding: 8,
-    borderRadius: 5,
-  },
 });

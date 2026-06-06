@@ -176,8 +176,9 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    width: "90%",
-    maxWidth: 500,
+    width: "100%",
+    maxWidth: 600,
+    minHeight: 500,
     backgroundColor: "white",
     padding: 20,
     borderRadius: 20,
@@ -185,9 +186,10 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 32,
+    marginBottom: 50,
+    marginTop:50,
+    fontSize: 40,
     fontWeight: "bold",
-    marginBottom: 20,
   },
 
   input: {
@@ -213,6 +215,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     fontWeight: "bold",
+    textAlign:"center"
   },
 
   link: {

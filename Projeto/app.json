@@ -1,23 +1,36 @@
 {
   "expo": {
-    "name": "Projeto",
-    "slug": "Projeto",
+    "name": "Paginarium",
+    "slug": "paginarium",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-
+    "web": {
+      "favicon": "./assets/favicon-32x32.png"
+    },
     "updates": {
       "enabled": false
     },
-
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "backgroundImage": "./assets/Paginarium_Android.png",
+        "foregroundImage": "./assets/Paginarium_icon.png"
+
+      },
+      "package": "com.paginarium.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7465bb3a-2cc7-44cb-9f75-84a45c6faa5e"
       }
-    }
+    },
+    "splash": {
+      "image": "./assets/Paginarium_Android.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "owner": "startzen"
   }
 }

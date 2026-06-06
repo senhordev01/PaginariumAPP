@@ -97,13 +97,7 @@ export default function Login() {
           <View style={{ backgroundColor: "#e9eaecde", flex: 1 }}>
             <View style={estilo.container}>
               <View style={estilo.Corpo_Elemento}>
-                <Text
-                  style={{
-                    marginBottom: 50,
-                    fontSize: 40,
-                    fontWeight: "bold",
-                  }}
-                >
+                <Text style={estilo.Titulo}>
                   Login
                 </Text>
 
@@ -125,16 +119,19 @@ export default function Login() {
                 />
 
                 <TouchableOpacity
+                  style={estilo.Botao_Login}
+                  onPress={login}
+                >
+                  <Text style={estilo.Texto_Botao}>
+                    Entrar
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   onPress={() => navigation.navigate("Cadastro")}
                 >
                   <Text style={estilo.Texto_Marcado}>
                     Cadastrar-se
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={login}>
-                  <Text style={estilo.Botao_Login}>
-                    Entrar
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -180,22 +177,28 @@ const estilo = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
   },
 
   Corpo_Elemento: {
     backgroundColor: "white",
-    width: "90%",
+    width: "100%",
     maxWidth: 600,
     minHeight: 500,
-    marginTop: 80,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
   },
 
+  Titulo: {
+    marginBottom: 50,
+    fontSize: 40,
+    fontWeight: "bold",
+  },
+
   Input: {
-    width: 300,
+    width: "100%",
     height: 50,
     borderRadius: 10,
     textAlign: "center",
@@ -206,15 +209,18 @@ const estilo = StyleSheet.create({
 
   Botao_Login: {
     backgroundColor: "blue",
-    width: 300,
-    height: 40,
+    width: "100%",
+    height: 45,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  Texto_Botao: {
     color: "white",
     fontWeight: "bold",
-    fontSize: 20,
-    borderRadius: 20,
-    textAlign: "center",
-    lineHeight: 40,
-    marginTop: 10,
+    fontSize: 18,
   },
 
   Texto_Marcado: {
