@@ -27,22 +27,34 @@ export default function App() {
           <Stack.Screen
             name="Inicio"
             component={Inicio}
-            options={{ headerShown: false }}
+            options={{ 
+              headerShown: false,
+              title: "Pagina Inicial"
+            }}
           />
           <Stack.Screen
             name="Login"
             component={Login}
-            options={{ headerShown: false }}
+            options={{ 
+              headerShown: false,
+              title: "Realizar Login"
+            }}
           />
           <Stack.Screen
             name="Cadastro"
             component={Cadastro}
-            options={{ headerShown: false }}
+            options={{ 
+              headerShown: false,
+              title: "Cadastrar-se"
+            }}
           />
           <Stack.Screen 
             name="Inicio_Adm"
             component={Inicio_Adm}
-            options={{headerShown: false}}
+            options={{
+              headerShown: false,
+              title: "Pagina do Administrador"
+            }}
           />
         </Stack.Navigator>
       </NavigationContainer>

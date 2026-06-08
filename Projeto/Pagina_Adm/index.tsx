@@ -22,6 +22,9 @@ import {
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+
 import Lua from "../assets/Lua_PixelArt.png";
 import Sol from "../assets/Sol_PixelArt.png";
 import Logout from "../assets/Logout.png";
@@ -36,6 +39,9 @@ interface Livro {
   id: number;
   nome: string;
   genero: string;
+  capa_url?: string;
+  pdf_url?: string;
+  valor: number;
 }
 
 type RootStackParamList = {
@@ -49,10 +55,11 @@ type RootStackParamList = {
 type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 type InicioRouteProp = RouteProp<RootStackParamList, "Inicio">;
 
-export default function Inicio() {
+export default function Inicio_Adm() {
   const { width } = useWindowDimensions();
   const Mobile = width < 600;
-
+  const colunas = 1;
+  
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<InicioRouteProp>();
 
@@ -65,8 +72,14 @@ export default function Inicio() {
 
   const [nome, setNome] = useState("");
   const [genero, setGenero] = useState("");
+  const [valor, setValor] = useState("");
+
+  const [capa, setCapa] = useState<any>(null);
+  const [pdf, setPdf] = useState<any>(null);
 
   const [editId, setEditId] = useState<number | null>(null);
+
+  const isDark = tema === "black";
 
   function Tema_Escuro() {
     setTema("black");
@@ -90,34 +103,105 @@ export default function Inicio() {
     carregarLivros();
   }, []);
 
+  async function selecionarCapa() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+
+      const isPng = asset.uri.endsWith(".png");
+
+      setCapa({
+        uri: asset.uri,
+        blob,
+        name: asset.fileName ?? (isPng ? "capa.png" : "capa.jpg"),
+        type: isPng ? "image/png" : "image/jpeg",
+      });
+    }
+  }
+
+  async function selecionarPdf() {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "application/pdf",
+    });
+
+    if (!result.canceled) {
+      const asset = result.assets[0];
+
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+
+      setPdf({
+        uri: asset.uri,
+        name: asset.name ?? "livro.pdf",
+        type: "application/pdf",
+      });
+    }
+  }
+  
+
+  async function toBlob(uri: string) {
+    const res = await fetch(uri);
+    return await res.blob();
+  }
+
   async function salvarLivro() {
     if (!nome.trim() || !genero.trim()) return;
 
     try {
+      const formData = new FormData();
+
+      formData.append("nome", nome.trim());
+      formData.append("genero", genero.trim());
+      formData.append("valor", String(Number(valor)));
+
+      if (capa) {
+        const capaBlob = await fetch(capa.uri).then(r => r.blob());
+        formData.append("capa", capaBlob, capa.name ?? "capa.jpg");
+      }
+
+      if (pdf) {
+        const pdfBlob = await fetch(pdf.uri).then(r => r.blob());
+        formData.append("pdf", pdfBlob, pdf.name ?? "livro.pdf");
+      }
+
+      let response;
+
       if (editId !== null) {
-        await fetch(`${API}/${editId}`, {
+        response = await fetch(`${API}/${editId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ nome, genero }),
+          body: formData,
         });
       } else {
-        await fetch(API, {
+        response = await fetch(API, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ nome, genero }),
+          body: formData,
         });
       }
 
+      const text = await response.text();
+
+      console.log("STATUS:", response.status);
+      console.log("RES:", text);
+
+      if (!response.ok) return;
+
+      await carregarLivros();
+
       setNome("");
       setGenero("");
+      setValor("");
+      setCapa(null);
+      setPdf(null);
       setEditId(null);
       setModal(false);
 
-      await carregarLivros();
     } catch (err) {
       console.log(err);
     }
@@ -125,11 +209,6 @@ export default function Inicio() {
 
   async function deletar(id: number) {
     try {
-      if (!id) {
-        console.log("ID inválido:", id);
-        return;
-      }
-
       await fetch(`${API}/${id}`, {
         method: "DELETE",
       });
@@ -145,20 +224,18 @@ export default function Inicio() {
     setGenero(item.genero);
     setEditId(item.id);
     setModal(true);
+    setValor(item.valor);
   }
-
-  const isDark = tema === "black";
-
+  
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }}>
         <View style={{ flex: 1, backgroundColor: tema }}>
           <SafeAreaView style={styles.navbar}>
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
               <Image source={Logout} style={styles.icon} />
             </TouchableOpacity>
 
-            <Text style={{ color: "white", fontSize: Mobile ? 16 : 20, fontWeight: "bold" }}>
+            <Text style={{ color: "white", fontSize: Mobile ? 16 : 20 }}>
               Olá, {usuario?.nome ?? "Usuário"}
             </Text>
 
@@ -169,53 +246,147 @@ export default function Inicio() {
 
           <FlatList
             data={livros}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ padding: 20 }}
-            style={{ backgroundColor: isDark ? "#1F1F1F" : "transparent" }}
+            key={colunas}
+            numColumns={colunas}
+            keyExtractor={(i) => i.id.toString()}
+            contentContainerStyle={{
+              paddingVertical: 20,
+              alignItems: "center",
+            }}
+            columnWrapperStyle={
+              colunas > 1
+                ? {
+                    justifyContent: "center",
+                  }
+                : undefined
+            }
             renderItem={({ item }) => (
-              <View style={[styles.card, {
-                backgroundColor: isDark ? "#2A2A2A" : "#fff",
-                width: Mobile ? "100%" : "90%",
-                alignSelf: "center",
-              }]}>
-                <Text style={{ fontSize: Mobile ? 16 : 18, fontWeight: "bold", color: isDark ? "white" : "black" }}>
+              <View
+                style={{
+                  padding: 15,
+                  margin: 20,
+                  width: 650,
+                  height: 670,
+                  backgroundColor: tema === "#e9eaecde" ? "white" : "#333",
+                  borderRadius: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Image
+                  source={{ uri: item.capa_url }}
+                  style={styles.capa}
+                />
+
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    color: tema === "#e9eaecde" ? "#333" : "white",
+                  }}
+                >
                   {item.nome}
                 </Text>
 
-                <Text style={{ color: isDark ? "#ccc" : "#333" }}>
-                  {item.genero}
+                <Text
+                  style={{
+                    color: tema === "#e9eaecde" ? "#333" : "white",
+                  }}
+                >
+                  Genero:{item.genero}
                 </Text>
 
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                  <TouchableOpacity style={styles.btnEditar} onPress={() => editar(item)}>
-                    <Text style={{ color: "white" }}>Editar</Text>
+                <Text
+                  style={{
+                    marginBottom: 10,
+                    color: tema === "#e9eaecde" ? "#333" : "white",
+                  }}
+                >
+                 Valor:{item.valor} / Mês
+                </Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => editar(item)}
+                    style={{
+                      backgroundColor: "#fc4e03",
+                      padding: 10,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontWeight: "bold" }}>
+                      Editar
+                    </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.btnDelete} onPress={() => deletar(item.id)}>
-                    <Text style={{ color: "white" }}>Deletar</Text>
+                  <TouchableOpacity
+                    onPress={() => deletar(item.id)}
+                    style={{
+                      backgroundColor: "red",
+                      padding: 10,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontWeight: "bold" }}>
+                      Deletar
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
           />
-
           <TouchableOpacity
             style={styles.fab}
             onPress={() => {
               setNome("");
               setGenero("");
+              setCapa(null);
+              setPdf(null);
               setEditId(null);
               setModal(true);
             }}
           >
-            <Text style={{ color: "white", fontSize: 45, fontWeight:"bold", flex:1, alignItems:"center", justifyContent:"center" }}>+</Text>
+            <Text style={{ color: "white", fontSize: 40, bottom:5, fontWeight:"bold"}}>+</Text>
           </TouchableOpacity>
 
           <Modal visible={modal} transparent animationType="slide">
             <View style={styles.modal}>
               <View style={styles.modalBox}>
-                <TextInput placeholder="Nome" value={nome} onChangeText={setNome} style={styles.input} />
-                <TextInput placeholder="Gênero" value={genero} onChangeText={setGenero} style={styles.input} />
+                <TextInput
+                  placeholder="Nome"
+                  value={nome}
+                  onChangeText={setNome}
+                  style={styles.input}
+                />
+
+                <TextInput
+                  placeholder="Gênero"
+                  value={genero}
+                  onChangeText={setGenero}
+                  style={styles.input}
+                />
+
+                <TouchableOpacity onPress={selecionarCapa} style={styles.input}>
+                  <Text style={{textAlign:"center"}}>
+                    {capa
+                      ? `${capa.name}`
+                      : "Selecionar Capa"}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={selecionarPdf} style={styles.input}>
+                  <Text style={{textAlign:"center"}}>
+                    {pdf 
+                      ? `${pdf.name}`
+                      : "Selecionar o PDF do Livro" 
+                    }
+                  </Text>
+                </TouchableOpacity> 
+                
+                <TextInput
+                  keyboardType="decimal-pad"
+                  placeholder="Digite o valor do livro"
+                  value={valor}
+                  onChangeText={setValor}
+                  style={styles.input}
+                />
 
                 <TouchableOpacity style={styles.btnSalvar} onPress={salvarLivro}>
                   <Text style={{ color: "white" }}>
@@ -224,13 +395,15 @@ export default function Inicio() {
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => setModal(false)}>
-                  <Text style={{ marginTop: 10, color: "#cc1f00" }}>Fechar</Text>
+                  <Text style={{ marginTop: 10, color: "#cc1f00" }}>
+                    Fechar
+                  </Text>
                 </TouchableOpacity>
+
               </View>
             </View>
           </Modal>
         </View>
-      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -245,18 +418,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
+  icon: { width: 40, height: 40, resizeMode: "contain" },
 
-  icon: {
-    width: 40,
-    height: 40,
-    resizeMode: "contain",
-  },
-
-  card: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
 
   fab: {
     position: "absolute",
@@ -268,46 +431,37 @@ const styles = StyleSheet.create({
     backgroundColor: "blue",
     alignItems: "center",
     justifyContent: "center",
-    elevation: 5,
   },
-
   modal: {
     flex: 1,
     backgroundColor: "#000000aa",
     justifyContent: "center",
     alignItems: "center",
   },
-
   modalBox: {
     width: "80%",
     backgroundColor: "white",
     padding: 20,
     borderRadius: 10,
   },
-
   input: {
     borderWidth: 1,
     marginBottom: 10,
     padding: 10,
     borderRadius: 8,
+    textAlign:"center"
   },
-
   btnSalvar: {
     backgroundColor: "green",
     padding: 10,
     alignItems: "center",
     borderRadius: 8,
   },
-
-  btnEditar: {
-    backgroundColor: "orange",
-    padding: 8,
-    borderRadius: 5,
+  capa: {
+    width: 600,
+    height: 500,
+    borderRadius: 8,
+    marginBottom: 10,
   },
 
-  btnDelete: {
-    backgroundColor: "red",
-    padding: 8,
-    borderRadius: 5,
-  },
 });

@@ -21,8 +21,15 @@ type RootStackParamList = {
     usuario: {
       nome: string;
       email: string;
+      
     };
   };
+  Inicio_Adm:{
+    usuario: {
+      nome: string;
+      email: string;
+    };
+  }
 };
 
 type NavigationProps =
@@ -31,6 +38,7 @@ type NavigationProps =
 interface Usuario {
   nome: string;
   email: string;
+  tipo?: "admin" | "normal";
 }
 
 interface LoginResponse {
@@ -77,14 +85,17 @@ export default function Login() {
         return;
       }
 
-      navigation.navigate("Inicio", {
-        usuario: data.usuario,
-      });
+      if (data.usuario?.tipo === "admin") {
+        navigation.navigate("Inicio_Adm", { usuario: data.usuario });
+      } else {
+        navigation.navigate("Inicio", { usuario: data.usuario });
+      }
     } catch (error) {
       console.log(error);
       setErro("Erro de conexão com o servidor");
       setModal(true);
     }
+    
   }
 
   return (
