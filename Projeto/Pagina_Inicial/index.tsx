@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   Modal,
   FlatList,
+  Platform,
 } from "react-native";
 
 import {
@@ -40,6 +41,9 @@ interface Livro {
   id: number;
   nome: string;
   genero: string;
+  valor: number;
+  capa_url?: string;
+  pdf_url?: string;
 }
 
 type RootStackParamList = {
@@ -52,6 +56,56 @@ type RootStackParamList = {
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 type InicioRouteProp = RouteProp<RootStackParamList, "Inicio">;
+
+// ✅ ListHeader fora do componente para não ser recriado a cada render
+interface ListHeaderProps {
+  busca: string;
+  setBusca: (v: string) => void;
+  tema: string;
+}
+
+const ListHeader = ({ busca, setBusca, tema }: ListHeaderProps) => (
+  <View style={{ alignItems: "center", marginBottom: 20, marginTop: 10 }}>
+    <View style={{ flexDirection: "row" }}>
+      <TextInput
+        placeholder="Digite o nome do livro ou Genero dele..."
+        underlineColorAndroid="transparent"
+        value={busca}
+        onChangeText={setBusca}
+        style={{
+          width: 350,
+          height: 50,
+          textAlign: "center",
+          borderColor: tema === "#e9eaecde" ? "black" : "white",
+          borderWidth: 3,
+          backgroundColor: "white",
+          borderTopLeftRadius: 20,
+          borderBottomLeftRadius: 20,
+          borderTopRightRadius: 0,
+          borderBottomRightRadius: 0,
+        }}
+      />
+      <TouchableOpacity
+        style={{
+          width: 50,
+          height: 50,
+          backgroundColor: "white",
+          justifyContent: "center",
+          alignItems: "center",
+          borderTopWidth: 3,
+          borderRightWidth: 3,
+          borderBottomWidth: 3,
+          borderTopColor: tema === "#e9eaecde" ? "black" : "white",
+          borderRightColor: tema === "#e9eaecde" ? "black" : "white",
+          borderBottomColor: tema === "#e9eaecde" ? "black" : "white",
+          borderLeftWidth: 0,
+        }}
+      >
+        <Image source={Lupa} style={{ width: 30, height: 30 }} />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 export default function Inicio() {
   const { width } = useWindowDimensions();
@@ -69,9 +123,10 @@ export default function Inicio() {
 
   const [nome, setNome] = useState("");
   const [genero, setGenero] = useState("");
+  const [busca, setBusca] = useState("");
 
   const [editId, setEditId] = useState<number | null>(null);
-  
+
   function Tema_Escuro() {
     setTema("black");
   }
@@ -94,205 +149,178 @@ export default function Inicio() {
     carregarLivros();
   }, []);
 
-
   const isDark = tema === "black";
 
+  const livrosFiltrados = livros.filter(
+    (l) =>
+      l.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      l.genero.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  // ✅ useMemo evita recriar o header a cada digitação
+  const header = useMemo(
+    () => <ListHeader busca={busca} setBusca={setBusca} tema={tema} />,
+    [busca, tema]
+  );
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={{ flex: 1, backgroundColor: tema }}>
-          <SafeAreaView style={styles.navbar}>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Image source={Logout} style={styles.icon} />
-            </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    >
+      <View style={{ flex: 1, backgroundColor: isDark ? "#1F1F1F" : tema }}>
 
-            <Text style={{ color: "white", fontSize: Mobile ? 16 : 20, fontWeight: "bold" }}>
-              Olá, {usuario?.nome ?? "Usuário"}
-            </Text>
+        {/* NAVBAR */}
+        <SafeAreaView style={styles.navbar}>
+          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <Image source={Logout} style={styles.icon} />
+          </TouchableOpacity>
 
-            <TouchableOpacity onPress={tema === "#e9eaecde" ? Tema_Escuro : Tema_Claro}>
-              <Image source={tema === "#e9eaecde" ? Lua : Sol} style={styles.icon} />
-            </TouchableOpacity>
-          </SafeAreaView>
+          <Text style={{ color: "white", fontSize: Mobile ? 16 : 20, fontWeight: "bold" }}>
+            Olá, {usuario?.nome ?? "Usuário"}
+          </Text>
 
-          <FlatList
-            data={livros}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ padding: 20 }}
-            style={{ backgroundColor: isDark ? "#1F1F1F" : "transparent" }}
-            renderItem={({ item }) => (
-              <View style={[styles.card, {
-                backgroundColor: isDark ? "#2A2A2A" : "#fff",
-                width: Mobile ? "100%" : "90%",
-                alignSelf: "center",
-              }]}>
-                <Text style={{ fontSize: Mobile ? 16 : 18, fontWeight: "bold", color: isDark ? "white" : "black" }}>
-                  {item.nome}
-                </Text>
+          <TouchableOpacity onPress={tema === "#e9eaecde" ? Tema_Escuro : Tema_Claro}>
+            <Image source={tema === "#e9eaecde" ? Lua : Sol} style={styles.icon} />
+          </TouchableOpacity>
+        </SafeAreaView>
 
-                <Text style={{ color: isDark ? "#ccc" : "#333" }}>
-                  {item.genero}
-                </Text>
-
-                {/* <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                  <TouchableOpacity style={styles.btnEditar} onPress={() => editar(item)}>
-                    <Text style={{ color: "white" }}>Editar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.btnDelete} onPress={() => deletar(item.id)}>
-                    <Text style={{ color: "white" }}>Deletar</Text>
-                  </TouchableOpacity>
-                </View> */}
-              </View>
-            )}
-          />
-
+        {/* BARRA DE OPÇÕES */}
+        <View style={{
+          backgroundColor: tema === "#e9eaecde" ? "white" : "#333",
+          width: "100%",
+          justifyContent: "center",
+          height: 80,
+        }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: tema === "#e9eaecde" ? "white" : "#333",
+              padding: 10,
+              width: 60,
+              left: 15,
+            }}
+            onPress={() => setMenuVisible(true)}
+          >
+            <Image
+              source={tema === "#e9eaecde" ? Opcoes_Escura : Opcoes_Clara}
+              style={styles.icon}
+            />
+          </TouchableOpacity>
         </View>
 
-        <View style={{ position: "absolute", top:100, backgroundColor: tema === "#e9eaecde" ? "white" : "#333", width:"100%", justifyContent:"center", height:80}}>
-            <TouchableOpacity
+        {/* LISTA */}
+        <FlatList
+          data={livrosFiltrados}
+          keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={header}
+          contentContainerStyle={{ padding: 20, alignItems: "center" }}
+          style={{ backgroundColor: isDark ? "#1F1F1F" : "transparent" }}
+          renderItem={({ item }) => (
+            <View
               style={{
-                backgroundColor:
-                  tema === "#e9eaecde" ? "white" : "#333", 
-                padding: 10,
-                width: 60,
-                left:15,
+                padding: 15,
+                margin: 20,
+                width: Mobile ? "95%" : 650,
+                backgroundColor: tema === "#e9eaecde" ? "white" : "#333",
+                borderRadius: 20,
+                alignItems: "center",
+                justifyContent: "center",
+                alignSelf: "center",
               }}
-              onPress={() => setMenuVisible(true)}
             >
-              <Image
-                source={tema === "#e9eaecde" ? Opcoes_Escura : Opcoes_Clara}
-                style={styles.icon}
-              />
-            </TouchableOpacity>
-
-            <Modal
-              visible={menuVisible}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setMenuVisible(false)}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                }}
-              >
-                <View
-                  style={{
-                    backgroundColor: "white",
-                    width: 500,
-                    height:"100%",
-                    padding: 20,
-                    position:"absolute",
-                    top:100,
-                    left:0,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      marginBottom: 70,
-                    }}
-                  >
-                    Menu
-                  </Text>
-
-                  <TouchableOpacity
-                    style={{
-                      width: "100%",
-                      padding: 10,
-                      backgroundColor: "#ad000e",
-                      borderRadius: 8,
-                      marginBottom: 30,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "white",
-                        textAlign: "center",
-                      }}
-                    >
-                      Configurações
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{
-                      width: "100%",
-                      padding: 10,
-                      backgroundColor: "#ad000e",
-                      borderRadius: 8,
-                      marginBottom: 20,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "white",
-                        textAlign: "center",
-                      }}
-                    >
-                      Meus Livros
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => setMenuVisible(false)}
-                    style={{
-                      padding: 10,
-                      position:"absolute", 
-                      top: 5,
-                      right: 5
-                    }}
-                  >
-        
-                      <Image source={Fechar} style={{width:30,height:30}}/>
-
-                  </TouchableOpacity>
-
-                </View>
+              <View>
+                <Image
+                  source={{ uri: item.capa_url }}
+                  style={styles.capa}
+                />
               </View>
-            </Modal>
-            <View style={{alignItems:"center"}}>
-              <TextInput
-                placeholder="Digite o nome do livro ou Genero dele..."
-                style={styles.input}
-              />
-                <TouchableOpacity
-                   style={{
-                    position: "absolute",
-                    top: 40,  
-                    marginStart: 395,
-                    width: 50,
-                    height: 50,
-                    backgroundColor: "white",
-                    justifyContent: "center",
-                    alignItems: "center",
 
-                    borderTopWidth: 2,
-                    borderRightWidth: 2,
-                    borderBottomWidth: 2,
+              <Text style={{ fontSize: Mobile ? 16 : 18, fontWeight: "bold", color: isDark ? "white" : "black" }}>
+                {item.nome}
+              </Text>
 
-                    borderTopColor: "black",
-                    borderRightColor: "black",
-                    borderBottomColor: "black",
+              <Text style={{ color: isDark ? "#ccc" : "#333" }}>
+                {item.genero}
+              </Text>
 
-                    borderLeftWidth: 0,
-                  }}
-                >
-                <Image source={Lupa} style={{ width: 30, height: 30 }} />
+              <Text style={{ color: isDark ? "#ccc" : "#333" }}>
+                Valor: {item.valor} / Mês
+              </Text>
+              <TouchableOpacity style={{backgroundColor:"#fc5603", padding:5, width:500, borderRadius:20, margin:10}}>
+                <Text style={{color:"white", fontWeight:"bold", fontSize:20, textAlign:"center"}}>Alugar</Text>
               </TouchableOpacity>
             </View>
-            
-          </View>
+          )}
+        />
 
-         
-        
-      </ScrollView>
+        {/* MENU MODAL */}
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMenuVisible(false)}
+        >
+          <View style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}>
+            <View style={{
+              backgroundColor: "white",
+              width: 500,
+              height: "100%",
+              padding: 20,
+              position: "absolute",
+              top: 100,
+              left: 0,
+              alignItems: "center",
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                marginBottom: 70,
+                color: isDark ? "white" : "black",
+              }}>
+                Menu
+              </Text>
+
+              <TouchableOpacity style={{
+                width: "100%",
+                padding: 10,
+                backgroundColor: "#ad000e",
+                borderRadius: 8,
+                marginBottom: 30,
+              }}>
+                <Text style={{ color: "white", textAlign: "center" }}>
+                  Configurações
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={{
+                width: "100%",
+                padding: 10,
+                backgroundColor: "#ad000e",
+                borderRadius: 8,
+                marginBottom: 20,
+              }}>
+                <Text style={{ color: "white", textAlign: "center" }}>
+                  Meus Livros
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setMenuVisible(false)}
+                style={{ padding: 10, position: "absolute", top: 5, right: 5 }}
+              >
+                <Image source={Fechar} style={{ width: 30, height: 30 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -312,13 +340,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     resizeMode: "contain",
-  },
-
-  card: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    top: 200
   },
 
   fab: {
@@ -348,23 +369,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  input: {
-    width:350,
-    height: 50,
-    textAlign: "center",
-    borderColor: "black",
-    borderWidth: 2,
-    position:"absolute",
-    top:40,
-    backgroundColor:"white",
-    borderTopLeftRadius: 20,
-    borderBottomLeftRadius: 20,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-
-
-  },
-
   btnSalvar: {
     backgroundColor: "green",
     padding: 10,
@@ -372,4 +376,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
+  capa: {
+    width: 600,
+    height: 500,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
 });
