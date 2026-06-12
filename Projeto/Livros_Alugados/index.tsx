@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 // const BASE = "http://10.0.10.209:8080";
@@ -62,6 +62,7 @@ export default function LivrosAlugados() {
   const [processando, setProcessando] = useState<number | null>(null);
 
   async function carregar() {
+    setCarregando(true);
     try {
       const res = await fetch(`${BASE}/alugueis`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -81,9 +82,14 @@ export default function LivrosAlugados() {
     }
   }
 
-  useEffect(() => {
-    carregar();
+  // ✅ Recarrega sempre que a tela receber foco (ex: após alugar)
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [])
+  );
 
+  useEffect(() => {
     const intervalo = setInterval(() => {
       setContagensLocais((prev) => {
         const atualizado: Record<number, number> = {};
