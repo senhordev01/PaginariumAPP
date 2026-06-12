@@ -13,24 +13,29 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type RootStackParamList = {
   Login: undefined;
   Cadastro: undefined;
   Inicio: {
     usuario: {
+      id: number;
       nome: string;
       email: string;
+      credito: number;
+      tipo: string;
     };
+    token: string;
   };
 };
 
-type NavigationProps =
-  NativeStackNavigationProp<RootStackParamList>;
+type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 
 interface CadastroResponse {
   message?: string;
-  usuario?: {
+  banco?: {
+    id: number;
     nome: string;
     email: string;
   };
@@ -54,11 +59,8 @@ export default function Cadastro() {
   async function cadastro() {
     try {
       if (
-        !nome.trim() ||
-        !email.trim() ||
-        !confirmar_email.trim() ||
-        !senha.trim() ||
-        !confirmar_senha.trim()
+        !nome.trim() || !email.trim() || !confirmar_email.trim() ||
+        !senha.trim() || !confirmar_senha.trim()
       ) {
         setErro("Não pode deixar campos vazios");
         setModal(true);
@@ -79,17 +81,10 @@ export default function Cadastro() {
 
       const response = await fetch(`${API_URL}/cadastro`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nome,
-          email,
-          senha,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, email, senha }),
       });
 
-      // proteção contra HTML vindo do backend
       const text = await response.text();
       let data: CadastroResponse;
 
@@ -107,11 +102,27 @@ export default function Cadastro() {
         return;
       }
 
+      // Login automático após cadastro
+      const loginRes = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha }),
+      });
+
+      const loginData = await loginRes.json();
+
+      if (!loginRes.ok) {
+        // Cadastrou mas login falhou, manda pro Login manual
+        navigation.navigate("Login");
+        return;
+      }
+
+      await AsyncStorage.setItem("token", loginData.token);
+      await AsyncStorage.setItem("usuario", JSON.stringify(loginData.usuario));
+
       navigation.navigate("Inicio", {
-        usuario: {
-          nome: data.usuario?.nome || nome,
-          email: data.usuario?.email || email,
-        },
+        usuario: loginData.usuario,
+        token: loginData.token,
       });
 
     } catch (error) {
@@ -188,7 +199,7 @@ const styles = StyleSheet.create({
 
   title: {
     marginBottom: 50,
-    marginTop:50,
+    marginTop: 50,
     fontSize: 40,
     fontWeight: "bold",
   },
@@ -216,7 +227,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     fontWeight: "bold",
-    textAlign:"center"
+    textAlign: "center",
   },
 
   link: {
