@@ -29,7 +29,7 @@ import Lua from "../assets/Lua_PixelArt.png";
 import Sol from "../assets/Sol_PixelArt.png";
 import Logout from "../assets/Logout.png";
 
-const API = "http://10.0.10.209:8080/livros";
+const API = "https://paginariumapi-production.up.railway.app";
 
 interface Usuario {
   nome: string;
@@ -91,7 +91,7 @@ export default function Inicio_Adm() {
 
   async function carregarLivros() {
     try {
-      const res = await fetch(API);
+      const res = await fetch(`${API}/livros`);
       const data: Livro[] = await res.json();
       setLivros(data);
     } catch (err) {
@@ -144,12 +144,6 @@ export default function Inicio_Adm() {
       });
     }
   }
-  
-
-  async function toBlob(uri: string) {
-    const res = await fetch(uri);
-    return await res.blob();
-  }
 
   async function salvarLivro() {
     if (!nome.trim() || !genero.trim()) return;
@@ -174,12 +168,12 @@ export default function Inicio_Adm() {
       let response;
 
       if (editId !== null) {
-        response = await fetch(`${API}/${editId}`, {
+        response = await fetch(`${API}/livros/${editId}`, {
           method: "PUT",
           body: formData,
         });
       } else {
-        response = await fetch(API, {
+        response = await fetch(`${API}/livros`, {
           method: "POST",
           body: formData,
         });
@@ -209,7 +203,7 @@ export default function Inicio_Adm() {
 
   async function deletar(id: number) {
     try {
-      await fetch(`${API}/${id}`, {
+      await fetch(`${API}/livros/${id}`, {
         method: "DELETE",
       });
 
@@ -224,7 +218,7 @@ export default function Inicio_Adm() {
     setGenero(item.genero);
     setEditId(item.id);
     setModal(true);
-    setValor(item.valor);
+    setValor(String(item.valor));
   }
   
   return (
@@ -420,7 +414,6 @@ const styles = StyleSheet.create({
   },
   icon: { width: 40, height: 40, resizeMode: "contain" },
 
-
   fab: {
     position: "absolute",
     bottom: 30,
@@ -463,5 +456,4 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
   },
-
 });

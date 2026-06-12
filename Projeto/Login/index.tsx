@@ -13,48 +13,53 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type RootStackParamList = {
   Login: undefined;
   Cadastro: undefined;
   Inicio: {
     usuario: {
+      id: number;
       nome: string;
       email: string;
-      
+      credito: number;
+      tipo: string;
     };
+    token: string;
   };
-  Inicio_Adm:{
+  Inicio_Adm: {
     usuario: {
       nome: string;
       email: string;
     };
-  }
+  };
 };
 
-type NavigationProps =
-  NativeStackNavigationProp<RootStackParamList>;
+type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 
 interface Usuario {
+  id: number;
   nome: string;
   email: string;
-  tipo?: "admin" | "normal";
+  credito: number;
+  tipo: "admin" | "normal";
 }
 
 interface LoginResponse {
   usuario: Usuario;
-  token?: string;
+  token: string;
   message?: string;
 }
 
-const API_URL = "http://10.0.10.209:8080";
+// const API_URL = "http://10.0.10.209:8080";
+const API_URL = "https://paginariumapi-production.up.railway.app";
 
 export default function Login() {
   const navigation = useNavigation<NavigationProps>();
 
   const [email, setEmail] = useState<string>("");
   const [senha, setSenha] = useState<string>("");
-
   const [erro, setErro] = useState<string>("");
   const [janelaModal, setModal] = useState<boolean>(false);
 
@@ -68,13 +73,8 @@ export default function Login() {
 
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          senha,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, senha }),
       });
 
       const data: LoginResponse = await response.json();
@@ -85,17 +85,29 @@ export default function Login() {
         return;
       }
 
+      // salva sessão no AsyncStorage para persistir após F5
+      await AsyncStorage.setItem("token", data.token);
+      await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+
       if (data.usuario?.tipo === "admin") {
         navigation.navigate("Inicio_Adm", { usuario: data.usuario });
       } else {
-        navigation.navigate("Inicio", { usuario: data.usuario });
+        navigation.navigate("Inicio", {
+          usuario: {
+            id: data.usuario.id,
+            nome: data.usuario.nome,
+            email: data.usuario.email,
+            credito: data.usuario.credito,
+            tipo: data.usuario.tipo,
+          },
+          token: data.token,
+        });
       }
     } catch (error) {
       console.log(error);
       setErro("Erro de conexão com o servidor");
       setModal(true);
     }
-    
   }
 
   return (
@@ -108,9 +120,7 @@ export default function Login() {
           <View style={{ backgroundColor: "#e9eaecde", flex: 1 }}>
             <View style={estilo.container}>
               <View style={estilo.Corpo_Elemento}>
-                <Text style={estilo.Titulo}>
-                  Login
-                </Text>
+                <Text style={estilo.Titulo}>Login</Text>
 
                 <TextInput
                   keyboardType="email-address"
@@ -129,21 +139,12 @@ export default function Login() {
                   onChangeText={setSenha}
                 />
 
-                <TouchableOpacity
-                  style={estilo.Botao_Login}
-                  onPress={login}
-                >
-                  <Text style={estilo.Texto_Botao}>
-                    Entrar
-                  </Text>
+                <TouchableOpacity style={estilo.Botao_Login} onPress={login}>
+                  <Text style={estilo.Texto_Botao}>Entrar</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("Cadastro")}
-                >
-                  <Text style={estilo.Texto_Marcado}>
-                    Cadastrar-se
-                  </Text>
+                <TouchableOpacity onPress={() => navigation.navigate("Cadastro")}>
+                  <Text style={estilo.Texto_Marcado}>Cadastrar-se</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -159,23 +160,11 @@ export default function Login() {
       >
         <View style={modalStyles.fundo}>
           <View style={modalStyles.caixa}>
-            <Text
-              style={{
-                color: "red",
-                fontSize: 16,
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
+            <Text style={{ color: "red", fontSize: 16, marginBottom: 20, textAlign: "center" }}>
               {erro}
             </Text>
-
-            <TouchableOpacity
-              onPress={() => setModal(false)}
-            >
-              <Text style={modalStyles.botaoFechar}>
-                Fechar
-              </Text>
+            <TouchableOpacity onPress={() => setModal(false)}>
+              <Text style={modalStyles.botaoFechar}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -185,85 +174,30 @@ export default function Login() {
 }
 
 const estilo = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  container: { flex: 1, alignItems: "center", justifyContent: "center" },
   Corpo_Elemento: {
-    backgroundColor: "white",
-    width: "100%",
-    maxWidth: 600,
-    minHeight: 500,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
+    backgroundColor: "white", width: "100%", maxWidth: 600,
+    minHeight: 500, borderRadius: 20, alignItems: "center",
+    justifyContent: "center", padding: 20,
   },
-
-  Titulo: {
-    marginBottom: 50,
-    fontSize: 40,
-    fontWeight: "bold",
-  },
-
+  Titulo: { marginBottom: 50, fontSize: 40, fontWeight: "bold" },
   Input: {
-    width: "100%",
-    height: 50,
-    borderRadius: 10,
-    textAlign: "center",
-    borderColor: "black",
-    borderWidth: 2,
-    marginBottom: 10,
+    width: "100%", height: 50, borderRadius: 10, textAlign: "center",
+    borderColor: "black", borderWidth: 2, marginBottom: 10,
   },
-
   Botao_Login: {
-    backgroundColor: "blue",
-    width: "100%",
-    height: 45,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
+    backgroundColor: "blue", width: "100%", height: 45,
+    borderRadius: 10, justifyContent: "center", alignItems: "center", marginTop: 10,
   },
-
-  Texto_Botao: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 18,
-  },
-
-  Texto_Marcado: {
-    color: "#0c9dc2",
-    fontWeight: "bold",
-    textAlign: "center",
-    margin: 20,
-  },
+  Texto_Botao: { color: "white", fontWeight: "bold", fontSize: 18 },
+  Texto_Marcado: { color: "#0c9dc2", fontWeight: "bold", textAlign: "center", margin: 20 },
 });
 
 const modalStyles = StyleSheet.create({
-  fundo: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  caixa: {
-    width: 300,
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
+  fundo: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
+  caixa: { width: 300, backgroundColor: "white", padding: 20, borderRadius: 10, alignItems: "center" },
   botaoFechar: {
-    backgroundColor: "red",
-    color: "white",
-    padding: 10,
-    borderRadius: 10,
-    width: 100,
-    textAlign: "center",
+    backgroundColor: "red", color: "white", padding: 10,
+    borderRadius: 10, width: 100, textAlign: "center",
   },
 });

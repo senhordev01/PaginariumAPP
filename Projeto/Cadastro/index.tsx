@@ -36,7 +36,8 @@ interface CadastroResponse {
   };
 }
 
-const API_URL = "http://10.0.10.209:8080";
+// const API_URL = "http://10.0.10.209:8080";
+const API_URL = "https://paginariumapi-production.up.railway.app";
 
 export default function Cadastro() {
   const navigation = useNavigation<NavigationProps>();
