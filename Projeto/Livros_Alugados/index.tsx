@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // const BASE = "http://10.0.10.209:8080";
 const BASE = "https://paginariumapi-production.up.railway.app";
@@ -54,18 +55,31 @@ export default function LivrosAlugados() {
   const Mobile = width < 600;
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute<RouteProps>();
-  const { usuario, token } = route.params;
+  const { usuario, token: tokenParam } = route.params;
 
+  const [token, setToken] = useState<string>(tokenParam ?? "");
   const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [contagensLocais, setContagensLocais] = useState<Record<number, number>>({});
   const [processando, setProcessando] = useState<number | null>(null);
 
-  async function carregar() {
+  // Garante que o token sempre está disponível, mesmo após F5
+  useEffect(() => {
+    async function garantirToken() {
+      if (!tokenParam) {
+        const salvo = await AsyncStorage.getItem("token");
+        if (salvo) setToken(salvo);
+      }
+    }
+    garantirToken();
+  }, []);
+
+  async function carregar(tkn: string) {
+    if (!tkn) return;
     setCarregando(true);
     try {
       const res = await fetch(`${BASE}/alugueis`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tkn}` },
       });
       const data: Aluguel[] = await res.json();
       setAlugueis(data);
@@ -82,11 +96,11 @@ export default function LivrosAlugados() {
     }
   }
 
-  // ✅ Recarrega sempre que a tela receber foco (ex: após alugar)
+  // Recarrega sempre que a tela receber foco
   useFocusEffect(
     useCallback(() => {
-      carregar();
-    }, [])
+      carregar(token);
+    }, [token])
   );
 
   useEffect(() => {
@@ -119,7 +133,6 @@ export default function LivrosAlugados() {
   }
 
   async function executarReembolso(aluguel: Aluguel) {
-    console.log("EXECUTANDO REEMBOLSO ID:", aluguel.id);
     setProcessando(aluguel.id);
     try {
       const res = await fetch(`${BASE}/alugueis/${aluguel.id}`, {
@@ -128,8 +141,6 @@ export default function LivrosAlugados() {
       });
 
       const data = await res.json();
-      console.log("STATUS REEMBOLSO:", res.status);
-      console.log("RESPOSTA REEMBOLSO:", JSON.stringify(data));
 
       if (!res.ok) {
         Alert.alert("Erro", typeof data === "string" ? data : "Não foi possível reembolsar");
@@ -148,7 +159,6 @@ export default function LivrosAlugados() {
         `R$ ${Number(aluguel.valor_total).toFixed(2)} devolvidos ao seu saldo.`
       );
     } catch (err) {
-      console.log("ERRO REEMBOLSO:", err);
       Alert.alert("Erro", "Não foi possível conectar ao servidor");
     } finally {
       setProcessando(null);
@@ -236,7 +246,7 @@ export default function LivrosAlugados() {
                     disabled={!ativo}
                   >
                     <Text style={{ color: "white", fontWeight: "bold", textAlign: "center" }}>
-                        Abrir PDF
+                      Abrir PDF
                     </Text>
                   </TouchableOpacity>
 
@@ -244,10 +254,7 @@ export default function LivrosAlugados() {
                     <TouchableOpacity
                       style={[styles.btnReembolso, estaProcessando && { backgroundColor: "#aaa" }]}
                       disabled={estaProcessando}
-                      onPress={() => {
-                        console.log("CLICOU REEMBOLSO ID:", item.id);
-                        executarReembolso(item);
-                      }}
+                      onPress={() => executarReembolso(item)}
                     >
                       <Text style={{ color: "white", fontWeight: "bold", textAlign: "center", fontSize: 13 }}>
                         {estaProcessando
