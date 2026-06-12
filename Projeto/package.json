@@ -34,7 +34,6 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web && copy web\\sw.js dist\\sw.js"
-  },
+    "build:web": "expo export --platform web && cp web/sw.js dist/sw.js && cp web/manifest.json dist/manifest.json && cp -r web/assets dist/assets && node inject-pwa.js"  },
   "private": true
 }
