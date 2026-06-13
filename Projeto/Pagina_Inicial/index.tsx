@@ -82,14 +82,12 @@ export default function Inicio() {
   const isDark = tema === "black";
   const { isInstallable, install } = usePWAInstall();
 
-  // Faz logout limpando AsyncStorage e redirecionando pro Login
   async function logout() {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("usuario");
     navigation.navigate("Login");
   }
 
-  // Trata respostas 401/403: sessão inválida ou expirada → logout automático
   async function handleUnauthorized() {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("usuario");
@@ -106,7 +104,6 @@ export default function Inicio() {
         headers: { Authorization: `Bearer ${tkn}` },
       });
 
-      // Token inválido ou expirado
       if (res.status === 401 || res.status === 403) {
         await handleUnauthorized();
         return;
@@ -129,7 +126,6 @@ export default function Inicio() {
     }
   }
 
-  // Recupera sessão do AsyncStorage caso perca os params (ex: F5 na web)
   useEffect(() => {
     async function recuperarSessao() {
       if (!token) {
@@ -137,26 +133,22 @@ export default function Inicio() {
         const usuarioSalvo = await AsyncStorage.getItem("usuario");
 
         if (!tokenSalvo) {
-          // Sem token salvo → vai pro Login
           navigation.navigate("Login");
           return;
         }
 
-        // Valida o token antes de usar: faz uma chamada de teste
         try {
           const res = await fetch(`${BASE}/alugueis`, {
             headers: { Authorization: `Bearer ${tokenSalvo}` },
           });
 
           if (res.status === 401 || res.status === 403) {
-            // Token expirado ou inválido → limpa e manda pro Login
             await AsyncStorage.removeItem("token");
             await AsyncStorage.removeItem("usuario");
             navigation.navigate("Login");
             return;
           }
 
-          // Token válido: atualiza estado e carrega dados
           setToken(tokenSalvo);
           if (usuarioSalvo && !usuario) setUsuario(JSON.parse(usuarioSalvo));
 
@@ -174,7 +166,6 @@ export default function Inicio() {
           }
         } catch (err) {
           console.log("Erro ao validar token:", err);
-          // Em caso de erro de rede, usa o token mesmo assim
           setToken(tokenSalvo);
           if (usuarioSalvo && !usuario) setUsuario(JSON.parse(usuarioSalvo));
         }
@@ -193,12 +184,10 @@ export default function Inicio() {
     }
   }
 
-  // Carrega livros sempre
   useEffect(() => {
     carregarLivros();
   }, []);
 
-  // Carrega aluguéis quando token já vem via route.params
   useEffect(() => {
     if (token) carregarAlugueisAtivos(token);
   }, [token]);
@@ -237,7 +226,6 @@ export default function Inicio() {
         body: JSON.stringify({ livro_id: livroSelecionado.id, meses }),
       });
 
-      // Token expirou durante a sessão
       if (res.status === 401 || res.status === 403) {
         setLivroSelecionado(null);
         await handleUnauthorized();
@@ -251,7 +239,13 @@ export default function Inicio() {
         return;
       }
 
-      setUsuario((prev) => prev ? { ...prev, credito: data.novo_credito } : prev);
+      // Atualiza crédito no estado E no AsyncStorage para persistir após reload
+      setUsuario((prev) => {
+        const atualizado = prev ? { ...prev, credito: data.novo_credito } : prev;
+        if (atualizado) AsyncStorage.setItem("usuario", JSON.stringify(atualizado));
+        return atualizado;
+      });
+
       setLivrosAlugadosIds((prev) => new Set(prev).add(livroSelecionado.id));
       setLivroSelecionado(null);
       setInserirValor("");
