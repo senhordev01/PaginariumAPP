@@ -63,7 +63,6 @@ export default function LivrosAlugados() {
   const [contagensLocais, setContagensLocais] = useState<Record<number, number>>({});
   const [processando, setProcessando] = useState<number | null>(null);
 
-  // Garante que o token sempre está disponível, mesmo após F5
   useEffect(() => {
     async function garantirToken() {
       if (!tokenParam) {
@@ -96,7 +95,6 @@ export default function LivrosAlugados() {
     }
   }
 
-  // Recarrega sempre que a tela receber foco
   useFocusEffect(
     useCallback(() => {
       carregar(token);
@@ -145,6 +143,18 @@ export default function LivrosAlugados() {
       if (!res.ok) {
         Alert.alert("Erro", typeof data === "string" ? data : "Não foi possível reembolsar");
         return;
+      }
+
+      // Atualiza crédito no AsyncStorage para refletir na tela inicial
+      if (data.novo_credito !== undefined) {
+        const usuarioSalvo = await AsyncStorage.getItem("usuario");
+        if (usuarioSalvo) {
+          const usuarioAtualizado = {
+            ...JSON.parse(usuarioSalvo),
+            credito: data.novo_credito,
+          };
+          await AsyncStorage.setItem("usuario", JSON.stringify(usuarioAtualizado));
+        }
       }
 
       setAlugueis((prev) => prev.filter((a) => a.id !== aluguel.id));
