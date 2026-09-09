@@ -1,4 +1,5 @@
-const CACHE_NAME = 'paginarium-v1';
+const CACHE_NAME = 'paginarium-v2';
+
 const urlsToCache = [
   '/',
   '/index.html',
@@ -11,6 +12,7 @@ self.addEventListener('install', event => {
       return cache.addAll(urlsToCache);
     })
   );
+
   self.skipWaiting();
 });
 
@@ -18,17 +20,24 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.filter(key => key !== CACHE_NAME)
+        keys
+          .filter(key => key !== CACHE_NAME)
           .map(key => caches.delete(key))
       )
     )
   );
+
   self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
-  // ✅ Ignora tudo que não for GET (POST, PUT, DELETE, etc.)
   if (event.request.method !== 'GET') return;
+
+  // Nunca guardar o manifest no cache
+  if (event.request.url.includes('/manifest.json')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then(response => {
