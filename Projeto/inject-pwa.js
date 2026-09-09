@@ -108,6 +108,7 @@ if (fs.existsSync(distIndex)) {
   fs.writeFileSync(distIndex, html);
 
   console.log('PWA configurado com sucesso!');
+  console.log('MANIFEST FINAL:', fs.readFileSync(path.join(dist, 'manifest.json'), 'utf8'));
 } else {
   console.error('Erro: dist/index.html não encontrado.');
 }
