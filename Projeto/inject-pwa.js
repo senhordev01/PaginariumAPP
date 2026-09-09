@@ -44,11 +44,35 @@ copiarArquivo(
   path.join(dist, 'sw.js')
 );
 
-copiarArquivo(
-  path.join(web, 'manifest.json'),
-  path.join(dist, 'manifest.json')
+const manifest = {
+  name: "Paginarium",
+  short_name: "Paginarium",
+  description: "Aluguel de livros digitais",
+  start_url: "/",
+  display: "standalone",
+  background_color: "#e9eaec",
+  theme_color: "#0c9dc2",
+  orientation: "portrait",
+  icons: [
+    {
+      src: "/assets/icon.png",
+      sizes: "192x192",
+      type: "image/png"
+    },
+    {
+      src: "/assets/icon.png",
+      sizes: "512x512",
+      type: "image/png"
+    }
+  ]
+};
+
+fs.writeFileSync(
+  path.join(dist, 'manifest.json'),
+  JSON.stringify(manifest, null, 2)
 );
 
+console.log('Manifest PWA configurado corretamente!');
 // Copiar assets
 copiarPasta(
   path.join(web, 'assets'),
