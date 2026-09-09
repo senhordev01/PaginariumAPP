@@ -29,7 +29,7 @@ import Lua from "../assets/Lua_PixelArt.png";
 import Sol from "../assets/Sol_PixelArt.png";
 import Logout from "../assets/Logout.png";
 
-const API = "https://paginariumapi-production.up.railway.app";
+const API = "https://paginariumapi.onrender.com";
 
 interface Usuario {
   nome: string;

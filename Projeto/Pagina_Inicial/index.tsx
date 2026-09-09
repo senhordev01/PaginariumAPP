@@ -28,7 +28,7 @@ import Fechar from "../assets/Fechar.png";
 import Lupa from "../assets/Lupa.png";
 
 // const BASE = "http://10.0.10.209:8080";
-const BASE = "https://paginariumapi-production.up.railway.app";
+const BASE = "https://paginariumapi.onrender.com";
 
 interface Usuario {
   id: number;
