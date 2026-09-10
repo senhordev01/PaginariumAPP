@@ -98,11 +98,9 @@ export default function Inicio() {
   // DIMENSÃO
   // ===================================================
 
-  const { width } =
-    useWindowDimensions();
+  const { width } = useWindowDimensions();
 
-  const Mobile =
-    width < 600;
+  const Mobile = width < 600;
 
   // ===================================================
   // NAVEGAÇÃO
@@ -147,9 +145,7 @@ export default function Inicio() {
     useState(false);
 
   const [livrosAlugadosIds, setLivrosAlugadosIds] =
-    useState<Set<number>>(
-      new Set()
-    );
+    useState<Set<number>>(new Set());
 
   const [livroSelecionado, setLivroSelecionado] =
     useState<Livro | null>(null);
@@ -179,17 +175,11 @@ export default function Inicio() {
 
   async function logout() {
 
-    await AsyncStorage.removeItem(
-      "token"
-    );
+    await AsyncStorage.removeItem("token");
 
-    await AsyncStorage.removeItem(
-      "usuario"
-    );
+    await AsyncStorage.removeItem("usuario");
 
-    navigation.navigate(
-      "Login"
-    );
+    navigation.navigate("Login");
   }
 
   // ===================================================
@@ -198,13 +188,9 @@ export default function Inicio() {
 
   async function handleUnauthorized() {
 
-    await AsyncStorage.removeItem(
-      "token"
-    );
+    await AsyncStorage.removeItem("token");
 
-    await AsyncStorage.removeItem(
-      "usuario"
-    );
+    await AsyncStorage.removeItem("usuario");
 
     Alert.alert(
       "Sessão expirada",
@@ -213,9 +199,7 @@ export default function Inicio() {
         {
           text: "OK",
           onPress: () =>
-            navigation.navigate(
-              "Login"
-            ),
+            navigation.navigate("Login"),
         },
       ]
     );
@@ -227,8 +211,7 @@ export default function Inicio() {
 
   function obterDataHoje() {
 
-    const hoje =
-      new Date();
+    const hoje = new Date();
 
     const ano =
       hoje.getFullYear();
@@ -268,8 +251,7 @@ export default function Inicio() {
       {
         ...options,
 
-        cache:
-          "no-store",
+        cache: "no-store",
 
         headers: {
           ...(options.headers || {}),
@@ -277,15 +259,14 @@ export default function Inicio() {
           "Cache-Control":
             "no-cache, no-store, must-revalidate",
 
-          Pragma:
-            "no-cache",
+          Pragma: "no-cache",
         },
       }
     );
   }
 
   // ===================================================
-  // CARREGAR USUÁRIO DO SERVIDOR
+  // CARREGAR USUÁRIO
   // ===================================================
 
   async function carregarUsuario(
@@ -295,16 +276,11 @@ export default function Inicio() {
 
     try {
 
-      console.log(
-        "🔄 BUSCANDO USUÁRIO ATUALIZADO..."
-      );
-
       const res =
         await fetchSemCache(
           `${BASE}/usuarios/${usuarioId}`,
           {
-            method:
-              "GET",
+            method: "GET",
 
             headers: {
               Authorization:
@@ -312,10 +288,6 @@ export default function Inicio() {
             },
           }
         );
-
-      // =============================================
-      // TOKEN INVÁLIDO
-      // =============================================
 
       if (
         res.status === 401 ||
@@ -327,10 +299,6 @@ export default function Inicio() {
         return null;
       }
 
-      // =============================================
-      // ERRO
-      // =============================================
-
       if (!res.ok) {
 
         console.log(
@@ -341,22 +309,8 @@ export default function Inicio() {
         return null;
       }
 
-      // =============================================
-      // DADOS
-      // =============================================
-
       const usuarioServidor =
         await res.json();
-
-      console.log(
-        "👤 USUÁRIO ATUAL:",
-        usuarioServidor
-      );
-
-      console.log(
-        "💰 CRÉDITO ATUAL:",
-        usuarioServidor.credito
-      );
 
       return {
         id:
@@ -401,16 +355,11 @@ export default function Inicio() {
 
     try {
 
-      console.log(
-        "📚 BUSCANDO ALUGUÉIS ATUAIS..."
-      );
-
       const res =
         await fetchSemCache(
           `${BASE}/alugueis`,
           {
-            method:
-              "GET",
+            method: "GET",
 
             headers: {
               Authorization:
@@ -418,10 +367,6 @@ export default function Inicio() {
             },
           }
         );
-
-      // =============================================
-      // TOKEN INVÁLIDO
-      // =============================================
 
       if (
         res.status === 401 ||
@@ -433,10 +378,6 @@ export default function Inicio() {
         return;
       }
 
-      // =============================================
-      // ERRO
-      // =============================================
-
       if (!res.ok) {
 
         console.log(
@@ -447,10 +388,6 @@ export default function Inicio() {
         return;
       }
 
-      // =============================================
-      // DADOS
-      // =============================================
-
       const data =
         await res.json();
 
@@ -458,19 +395,11 @@ export default function Inicio() {
         !Array.isArray(data)
       ) {
 
-        console.log(
-          "⚠️ Resposta de aluguéis inválida"
-        );
-
         return;
       }
 
       const hoje =
         obterDataHoje();
-
-      // =============================================
-      // SOMENTE ALUGUÉIS ATIVOS
-      // =============================================
 
       const idsAtivos =
         new Set<number>(
@@ -504,13 +433,6 @@ export default function Inicio() {
         idsAtivos
       );
 
-      console.log(
-        "📚 LIVROS ATIVOS:",
-        Array.from(
-          idsAtivos
-        )
-      );
-
     } catch (erro) {
 
       console.log(
@@ -528,16 +450,11 @@ export default function Inicio() {
 
     try {
 
-      console.log(
-        "📖 BUSCANDO LIVROS ATUAIS..."
-      );
-
       const res =
         await fetchSemCache(
           `${BASE}/livros`,
           {
-            method:
-              "GET",
+            method: "GET",
           }
         );
 
@@ -567,10 +484,6 @@ export default function Inicio() {
         )
       );
 
-      console.log(
-        "✅ LIVROS ATUALIZADOS"
-      );
-
     } catch (erro) {
 
       console.log(
@@ -581,7 +494,7 @@ export default function Inicio() {
   }
 
   // ===================================================
-  // SINCRONIZAÇÃO AUTOMÁTICA
+  // SINCRONIZAÇÃO
   // ===================================================
 
   const sincronizarDados =
@@ -592,22 +505,6 @@ export default function Inicio() {
       ) => {
 
         try {
-
-          console.log(
-            "===================================="
-          );
-
-          console.log(
-            "🔄 SINCRONIZAÇÃO AUTOMÁTICA"
-          );
-
-          console.log(
-            "===================================="
-          );
-
-          // ===========================================
-          // 1. BUSCAR USUÁRIO NO BANCO
-          // ===========================================
 
           const usuarioServidor =
             await carregarUsuario(
@@ -623,10 +520,6 @@ export default function Inicio() {
 
             return;
           }
-
-          // ===========================================
-          // 2. ATUALIZAR USUÁRIO
-          // ===========================================
 
           const usuarioAtualizado: Usuario =
             {
@@ -662,36 +555,11 @@ export default function Inicio() {
             )
           );
 
-          console.log(
-            "💰 CRÉDITO SINCRONIZADO:",
-            usuarioAtualizado.credito
-          );
-
-          // ===========================================
-          // 3. ATUALIZAR ALUGUÉIS
-          // ===========================================
-
           await carregarAlugueisAtivos(
             tkn
           );
 
-          // ===========================================
-          // 4. ATUALIZAR LIVROS
-          // ===========================================
-
           await carregarLivros();
-
-          console.log(
-            "===================================="
-          );
-
-          console.log(
-            "✅ SINCRONIZAÇÃO CONCLUÍDA"
-          );
-
-          console.log(
-            "===================================="
-          );
 
         } catch (erro) {
 
@@ -710,16 +578,11 @@ export default function Inicio() {
 
   useEffect(() => {
 
-    let cancelado =
-      false;
+    let cancelado = false;
 
     async function recuperarSessao() {
 
       try {
-
-        console.log(
-          "🚀 INICIANDO SESSÃO..."
-        );
 
         const tokenSalvo =
           await AsyncStorage.getItem(
@@ -759,10 +622,6 @@ export default function Inicio() {
           }
         }
 
-        // =============================================
-        // SEM TOKEN
-        // =============================================
-
         if (
           !tokenAtual
         ) {
@@ -773,10 +632,6 @@ export default function Inicio() {
 
           return;
         }
-
-        // =============================================
-        // SEM USUÁRIO
-        // =============================================
 
         if (
           !usuarioAtual?.id
@@ -796,10 +651,6 @@ export default function Inicio() {
           return;
         }
 
-        // =============================================
-        // ATUALIZAR ESTADO
-        // =============================================
-
         setToken(
           tokenAtual
         );
@@ -807,10 +658,6 @@ export default function Inicio() {
         setUsuario(
           usuarioAtual
         );
-
-        // =============================================
-        // SINCRONIZAR COM BANCO
-        // =============================================
 
         await sincronizarDados(
           tokenAtual,
@@ -830,14 +677,13 @@ export default function Inicio() {
 
     return () => {
 
-      cancelado =
-        true;
+      cancelado = true;
     };
 
   }, []);
 
   // ===================================================
-  // CARREGAR LIVROS INICIALMENTE
+  // LIVROS INICIALMENTE
   // ===================================================
 
   useEffect(() => {
@@ -847,14 +693,12 @@ export default function Inicio() {
   }, []);
 
   // ===================================================
-  // CARREGAR ALUGUÉIS QUANDO TOKEN EXISTIR
+  // ALUGUÉIS QUANDO TOKEN EXISTIR
   // ===================================================
 
   useEffect(() => {
 
-    if (
-      token
-    ) {
+    if (token) {
 
       carregarAlugueisAtivos(
         token
@@ -864,31 +708,17 @@ export default function Inicio() {
   }, [token]);
 
   // ===================================================
-  // SINCRONIZAÇÃO AUTOMÁTICA AO VOLTAR
+  // SINCRONIZAÇÃO AO VOLTAR
   // ===================================================
 
   useFocusEffect(
     useCallback(() => {
 
-      let cancelado =
-        false;
+      let cancelado = false;
 
       async function atualizarAoVoltar() {
 
         try {
-
-          console.log(
-            "===================================="
-          );
-
-          console.log(
-            "🔙 VOLTOU PARA INÍCIO"
-          );
-
-          // =========================================
-          // SEMPRE PEGAR OS DADOS MAIS RECENTES
-          // DO ASYNC STORAGE
-          // =========================================
 
           const tokenSalvo =
             await AsyncStorage.getItem(
@@ -927,7 +757,7 @@ export default function Inicio() {
           } catch (erro) {
 
             console.log(
-              "❌ Erro ao ler usuário do Storage:",
+              "❌ Erro ao ler usuário:",
               erro
             );
 
@@ -941,19 +771,6 @@ export default function Inicio() {
             return;
           }
 
-          console.log(
-            "👤 USUÁRIO DO STORAGE:",
-            usuarioStorage
-          );
-
-          console.log(
-            "🔄 BUSCANDO DADOS NOVAMENTE..."
-          );
-
-          // =========================================
-          // SINCRONIZAÇÃO COMPLETA
-          // =========================================
-
           await sincronizarDados(
             tokenSalvo,
             usuarioStorage
@@ -966,26 +783,14 @@ export default function Inicio() {
             return;
           }
 
-          // =========================================
-          // GARANTIR TOKEN ATUAL
-          // =========================================
-
           setToken(
             tokenSalvo
-          );
-
-          console.log(
-            "✅ DADOS ATUALIZADOS AUTOMATICAMENTE"
-          );
-
-          console.log(
-            "===================================="
           );
 
         } catch (erro) {
 
           console.log(
-            "❌ Erro ao sincronizar ao voltar:",
+            "❌ Erro ao sincronizar:",
             erro
           );
         }
@@ -995,8 +800,7 @@ export default function Inicio() {
 
       return () => {
 
-        cancelado =
-          true;
+        cancelado = true;
       };
 
     }, [
@@ -1005,7 +809,7 @@ export default function Inicio() {
   );
 
   // ===================================================
-  // FILTRO DE LIVROS
+  // FILTRO
   // ===================================================
 
   const livrosFiltrados =
@@ -1096,9 +900,7 @@ export default function Inicio() {
       return;
     }
 
-    if (
-      !token
-    ) {
+    if (!token) {
 
       await handleUnauthorized();
 
@@ -1111,19 +913,13 @@ export default function Inicio() {
 
     try {
 
-      console.log(
-        "📚 REALIZANDO ALUGUEL..."
-      );
-
       const res =
         await fetch(
           `${BASE}/alugueis`,
           {
-            method:
-              "POST",
+            method: "POST",
 
-            cache:
-              "no-store",
+            cache: "no-store",
 
             headers: {
               "Content-Type":
@@ -1146,10 +942,6 @@ export default function Inicio() {
           }
         );
 
-      // =============================================
-      // TOKEN INVÁLIDO
-      // =============================================
-
       if (
         res.status === 401 ||
         res.status === 403
@@ -1167,13 +959,7 @@ export default function Inicio() {
       const data =
         await res.json();
 
-      // =============================================
-      // ERRO
-      // =============================================
-
-      if (
-        !res.ok
-      ) {
+      if (!res.ok) {
 
         Alert.alert(
           "Erro",
@@ -1185,17 +971,8 @@ export default function Inicio() {
         return;
       }
 
-      console.log(
-        "✅ ALUGUEL REALIZADO"
-      );
-
-      console.log(
-        "💰 NOVO CRÉDITO:",
-        data.novo_credito
-      );
-
       // =============================================
-      // ATUALIZAR CRÉDITO IMEDIATAMENTE
+      // ATUALIZAR CRÉDITO
       // =============================================
 
       setUsuario(
@@ -1248,10 +1025,6 @@ export default function Inicio() {
       setInserirValor(
         ""
       );
-
-      // =============================================
-      // MENSAGEM
-      // =============================================
 
       Alert.alert(
         "Sucesso!",
@@ -1322,41 +1095,30 @@ export default function Inicio() {
         ================================================= */}
 
         <SafeAreaView
-          style={
-            styles.navbar
-          }
+          style={styles.navbar}
         >
 
           <TouchableOpacity
-            onPress={
-              logout
-            }
+            onPress={logout}
           >
 
             <Image
-              source={
-                Logout
-              }
-
-              style={
-                styles.icon
-              }
+              source={Logout}
+              style={styles.icon}
             />
 
           </TouchableOpacity>
 
           <Text
             style={{
-              color:
-                "white",
+              color: "white",
 
               fontSize:
                 Mobile
                   ? 16
                   : 20,
 
-              fontWeight:
-                "bold",
+              fontWeight: "bold",
             }}
           >
 
@@ -1383,9 +1145,7 @@ export default function Inicio() {
                   : Lua
               }
 
-              style={
-                styles.icon
-              }
+              style={styles.icon}
             />
 
           </TouchableOpacity>
@@ -1403,14 +1163,11 @@ export default function Inicio() {
                 ? "#333"
                 : "white",
 
-            width:
-              "100%",
+            width: "100%",
 
-            justifyContent:
-              "center",
+            justifyContent: "center",
 
-            height:
-              80,
+            height: 80,
           }}
         >
 
@@ -1421,47 +1178,33 @@ export default function Inicio() {
                   ? "white"
                   : "black",
 
-              fontSize:
-                20,
+              fontSize: 20,
 
-              position:
-                "absolute",
+              position: "absolute",
 
-              marginBottom:
-                4,
-
-              right:
-                10,
+              right: 10,
             }}
           >
 
             Créditos: R${" "}
 
             {Number(
-              usuario?.credito ??
-                0
-            ).toFixed(
-              2
-            )}
+              usuario?.credito ?? 0
+            ).toFixed(2)}
 
           </Text>
 
           <TouchableOpacity
             style={{
-              padding:
-                10,
+              padding: 10,
 
-              width:
-                60,
+              width: 60,
 
-              left:
-                15,
+              left: 15,
             }}
 
             onPress={() =>
-              setMenuVisible(
-                true
-              )
+              setMenuVisible(true)
             }
           >
 
@@ -1472,9 +1215,7 @@ export default function Inicio() {
                   : Opcoes_Escura
               }
 
-              style={
-                styles.icon
-              }
+              style={styles.icon}
             />
 
           </TouchableOpacity>
@@ -1486,41 +1227,49 @@ export default function Inicio() {
         ================================================= */}
 
         <FlatList
-          data={
-            livrosFiltrados
+          data={livrosFiltrados}
+
+          keyExtractor={(item) =>
+            item.id.toString()
           }
 
-          keyExtractor={
-            (item) =>
-              item.id.toString()
+          showsVerticalScrollIndicator={
+            false
           }
-
-          contentContainerStyle={{
-            padding:
-              20,
-
-            alignItems:
-              "center",
-          }}
 
           style={{
+            flex: 1,
+
+            width: "100%",
+
             backgroundColor:
               isDark
                 ? "#1F1F1F"
                 : "transparent",
           }}
 
+          contentContainerStyle={{
+            paddingTop: 10,
+
+            paddingBottom: 30,
+
+            paddingHorizontal: 0,
+
+            alignItems: "center",
+          }}
+
           keyboardShouldPersistTaps="handled"
 
           ListEmptyComponent={
-
             <View
               style={{
-                marginTop:
-                  60,
+                width: "100%",
 
-                alignItems:
-                  "center",
+                marginTop: 60,
+
+                alignItems: "center",
+
+                paddingHorizontal: 20,
               }}
             >
 
@@ -1531,95 +1280,95 @@ export default function Inicio() {
                       ? "#ccc"
                       : "#666",
 
-                  fontSize:
-                    16,
+                  fontSize: 16,
+
+                  textAlign: "center",
                 }}
               >
-
                 Nenhum livro
                 encontrado para
                 "{termoPesquisado}"
-
               </Text>
 
               <TouchableOpacity
                 onPress={() => {
-
-                  setBusca(
-                    ""
-                  );
-
-                  setTermoPesquisado(
-                    ""
-                  );
-
+                  setBusca("");
+                  setTermoPesquisado("");
                 }}
 
                 style={{
-                  marginTop:
-                    16,
+                  marginTop: 16,
 
-                  padding:
-                    10,
+                  padding: 10,
 
                   backgroundColor:
                     "#fc5603",
 
-                  borderRadius:
-                    8,
+                  borderRadius: 8,
                 }}
               >
 
                 <Text
                   style={{
-                    color:
-                      "white",
+                    color: "white",
 
-                    fontWeight:
-                      "bold",
+                    fontWeight: "bold",
                   }}
                 >
-
                   Limpar pesquisa
-
                 </Text>
 
               </TouchableOpacity>
 
             </View>
-
           }
 
           ListHeaderComponent={
-
             <View
               style={{
-                alignItems:
-                  "center",
+                width: "100%",
 
-                marginBottom:
-                  20,
+                alignItems: "center",
 
-                marginTop:
-                  10,
+                marginBottom: 20,
+
+                marginTop: 10,
+
+                paddingHorizontal:
+                  Mobile
+                    ? 10
+                    : 0,
               }}
             >
 
               <View
                 style={{
-                  flexDirection:
-                    "row",
+                  width:
+                    Mobile
+                      ? "100%"
+                      : 550,
+
+                  maxWidth:
+                    Mobile
+                      ? 550
+                      : 550,
+
+                  height: 50,
+
+                  flexDirection: "row",
+
+                  alignItems: "center",
                 }}
               >
 
                 <TextInput
-                  placeholder="Digite o nome do livro ou Gênero..."
+                  placeholder={
+                    "Digite o nome do livro ou Gênero..."
+                  }
 
                   underlineColorAndroid="transparent"
 
-                  value={
-                    busca
-                  }
+                  value={busca}
 
                   onChangeText={
                     setBusca
@@ -1632,24 +1381,18 @@ export default function Inicio() {
                   }
 
                   style={{
-                    width:
-                      Mobile
-                        ? 280
-                        : 550,
+                    flex: 1,
 
-                    height:
-                      50,
+                    height: 50,
 
-                    textAlign:
-                      "center",
+                    textAlign: "center",
 
                     borderColor:
                       isDark
                         ? "white"
                         : "black",
 
-                    borderWidth:
-                      2,
+                    borderWidth: 2,
 
                     backgroundColor:
                       "white",
@@ -1669,16 +1412,14 @@ export default function Inicio() {
                 />
 
                 <TouchableOpacity
-                  onPress={
-                    pesquisar
-                  }
+                  onPress={pesquisar}
 
                   style={{
-                    width:
-                      50,
+                    width: 50,
 
-                    height:
-                      50,
+                    height: 50,
+
+                    flexShrink: 0,
 
                     backgroundColor:
                       "white",
@@ -1689,14 +1430,11 @@ export default function Inicio() {
                     alignItems:
                       "center",
 
-                    borderTopWidth:
-                      2,
+                    borderTopWidth: 2,
 
-                    borderRightWidth:
-                      2,
+                    borderRightWidth: 2,
 
-                    borderBottomWidth:
-                      2,
+                    borderBottomWidth: 2,
 
                     borderTopColor:
                       isDark
@@ -1719,25 +1457,20 @@ export default function Inicio() {
                     borderBottomRightRadius:
                       20,
 
-                    borderLeftWidth:
-                      0,
-
-                    right:
-                      5,
+                    borderLeftWidth: 0,
                   }}
                 >
 
                   <Image
-                    source={
-                      Lupa
-                    }
+                    source={Lupa}
 
                     style={{
-                      width:
-                        30,
+                      width: 30,
 
-                      height:
-                        30,
+                      height: 30,
+
+                      resizeMode:
+                        "contain",
                     }}
                   />
 
@@ -1746,12 +1479,9 @@ export default function Inicio() {
               </View>
 
             </View>
-
           }
 
-          renderItem={({
-            item,
-          }) => {
+          renderItem={({ item }) => {
 
             const jaAlugado =
               livrosAlugadosIds.has(
@@ -1761,41 +1491,39 @@ export default function Inicio() {
             return (
 
               <View
-                style={{
-                  padding:
-                    15,
+                style={[
+                  styles.cardLivro,
 
-                  margin:
-                    20,
+                  Mobile
+                    ? {
+                        width:
+                          width - 60,
 
-                  width:
-                    Mobile
-                      ? "95%"
-                      : 650,
+                        maxWidth:
+                          380,
 
-                  height:
-                    Mobile
-                      ? "95%"
-                      : 840,
+                        padding:
+                          15,
 
-                  backgroundColor:
-                    isDark
-                      ? "#333"
-                      : "white",
+                        marginHorizontal:
+                          10,
 
-                  borderRadius:
-                    20,
+                        marginVertical:
+                          10,
+                      }
+                    : {
+                        width: 650,
 
-                  alignItems:
-                    "center",
+                        padding: 20,
 
-                  justifyContent:
-                    "center",
-
-                  alignSelf:
-                    "center",
-                }}
+                        marginVertical: 20,
+                      },
+                ]}
               >
+
+                {/* =====================================
+                    CAPA
+                ===================================== */}
 
                 <Image
                   source={{
@@ -1803,27 +1531,44 @@ export default function Inicio() {
                       item.capa_url,
                   }}
 
+                  resizeMode="cover"
+
                   style={[
                     styles.capa,
 
-                    {
-                      width:
-                        Mobile
-                          ? width *
-                            0.8
-                          : 600,
+                    Mobile
+                      ? {
+                          width:
+                            Math.min(
+                              width - 100,
+                              230
+                            ),
 
-                      height:
-                        Mobile
-                          ? 600 *
-                            0.8
-                          : 600,
-                    },
+                          height:
+                            Math.min(
+                              (width - 100) *
+                                1.35,
+                              310
+                            ),
+                        }
+                      : {
+                          width: 600,
+
+                          height: 600,
+                        },
                   ]}
                 />
 
+                {/* =====================================
+                    NOME
+                ===================================== */}
+
                 <Text
+                  numberOfLines={2}
+
                   style={{
+                    width: "100%",
+
                     fontSize:
                       Mobile
                         ? 16
@@ -1836,32 +1581,60 @@ export default function Inicio() {
                       isDark
                         ? "white"
                         : "black",
+
+                    textAlign:
+                      "center",
+
+                    marginTop: 10,
+
+                    paddingHorizontal:
+                      5,
                   }}
                 >
-
                   {item.nome}
-
                 </Text>
 
+                {/* =====================================
+                    GÊNERO
+                ===================================== */}
+
                 <Text
+                  numberOfLines={1}
+
                   style={{
+                    width: "100%",
+
                     color:
                       isDark
                         ? "#ccc"
                         : "#333",
+
+                    textAlign:
+                      "center",
+
+                    marginTop: 5,
                   }}
                 >
-
                   {item.genero}
-
                 </Text>
+
+                {/* =====================================
+                    VALOR
+                ===================================== */}
 
                 <Text
                   style={{
+                    width: "100%",
+
                     color:
                       isDark
                         ? "#ccc"
                         : "#333",
+
+                    textAlign:
+                      "center",
+
+                    marginTop: 5,
                   }}
                 >
 
@@ -1869,32 +1642,46 @@ export default function Inicio() {
 
                   {Number(
                     item.valor
-                  ).toFixed(
-                    2
-                  )}{" "}
+                  ).toFixed(2)}
 
-                  / Mês
+                  {" "}/ Mês
 
                 </Text>
 
+                {/* =====================================
+                    BOTÃO ALUGAR
+                ===================================== */}
+
                 <TouchableOpacity
                   style={{
-                    padding:
+                    width:
+                      Mobile
+                        ? "90%"
+                        : "90%",
+
+                    minHeight: 48,
+
+                    paddingVertical:
                       10,
 
-                    width:
-                      "90%",
+                    paddingHorizontal:
+                      10,
 
                     borderRadius:
                       20,
 
-                    margin:
-                      10,
+                    marginTop: 15,
 
                     backgroundColor:
                       jaAlugado
                         ? "#aaa"
                         : "#fc5603",
+
+                    alignItems:
+                      "center",
+
+                    justifyContent:
+                      "center",
                   }}
 
                   disabled={
@@ -1923,7 +1710,9 @@ export default function Inicio() {
                         "bold",
 
                       fontSize:
-                        20,
+                        Mobile
+                          ? 18
+                          : 20,
 
                       textAlign:
                         "center",
@@ -1966,15 +1755,11 @@ export default function Inicio() {
         >
 
           <View
-            style={
-              styles.modal
-            }
+            style={styles.modal}
           >
 
             <View
-              style={
-                styles.modalBox
-            }
+              style={styles.modalBox}
             >
 
               <Text
@@ -2035,34 +1820,24 @@ export default function Inicio() {
 
                 keyboardType="numeric"
 
-                maxLength={
-                  4
-                }
+                maxLength={4}
 
                 style={{
-                  borderWidth:
-                    1,
+                  borderWidth: 1,
 
                   borderColor:
                     "#ccc",
 
-                  borderRadius:
-                    8,
+                  borderRadius: 8,
 
-                  padding:
-                    10,
+                  padding: 10,
 
-                  marginBottom:
-                    16,
+                  marginBottom: 16,
 
                   textAlign:
                     "center",
                 }}
               />
-
-              {/* ==========================================
-                  TOTAL
-              ========================================== */}
 
               {inserir_valor !==
                 "" &&
@@ -2090,11 +1865,9 @@ export default function Inicio() {
 
                     {Number(
                       livroSelecionado.valor
-                    ).toFixed(
-                      2
-                    )}{" "}
+                    ).toFixed(2)}
 
-                    ={" "}
+                    {" = "}
 
                     <Text
                       style={{
@@ -2119,10 +1892,6 @@ export default function Inicio() {
                   </Text>
 
                 )}
-
-              {/* ==========================================
-                  SALDO INSUFICIENTE
-              ========================================== */}
 
               {saldoInsuficiente &&
                 inserir_valor !==
@@ -2153,17 +1922,13 @@ export default function Inicio() {
 
                     {creditoAtual.toFixed(
                       2
-                    )}{" "}
+                    )}
 
-                    de crédito.
+                    {" "}de crédito.
 
                   </Text>
 
                 )}
-
-              {/* ==========================================
-                  SALDO APÓS ALUGUEL
-              ========================================== */}
 
               {!saldoInsuficiente &&
                 inserir_valor !==
@@ -2199,10 +1964,6 @@ export default function Inicio() {
                   </Text>
 
                 )}
-
-              {/* ==========================================
-                  CONFIRMAR
-              ========================================== */}
 
               <TouchableOpacity
                 style={[
@@ -2257,10 +2018,6 @@ export default function Inicio() {
 
               </TouchableOpacity>
 
-              {/* ==========================================
-                  FECHAR
-              ========================================== */}
-
               <TouchableOpacity
                 onPress={() =>
                   setLivroSelecionado(
@@ -2272,25 +2029,19 @@ export default function Inicio() {
                   position:
                     "absolute",
 
-                  top:
-                    15,
+                  top: 15,
 
-                  right:
-                    10,
+                  right: 10,
                 }}
               >
 
                 <Image
-                  source={
-                    Fechar
-                  }
+                  source={Fechar}
 
                   style={{
-                    width:
-                      20,
+                    width: 20,
 
-                    height:
-                      20,
+                    height: 20,
                   }}
                 />
 
@@ -2324,8 +2075,7 @@ export default function Inicio() {
 
           <View
             style={{
-              flex:
-                1,
+              flex: 1,
 
               backgroundColor:
                 "rgba(0,0,0,0.5)",
@@ -2335,34 +2085,31 @@ export default function Inicio() {
             <View
               style={{
                 backgroundColor:
-                  "white",
+                  isDark
+                    ? "#222"
+                    : "white",
 
                 width:
                   Mobile
                     ? "100%"
                     : 450,
 
-                height:
-                  "100%",
+                height: "100%",
 
-                padding:
-                  20,
+                padding: 20,
 
-                paddingTop:
-                  60,
+                paddingTop: 60,
 
                 alignItems:
                   "center",
 
-                top:
-                  100,
+                top: 100,
               }}
             >
 
               <Text
                 style={{
-                  fontSize:
-                    18,
+                  fontSize: 18,
 
                   fontWeight:
                     "bold",
@@ -2381,10 +2128,6 @@ export default function Inicio() {
 
               </Text>
 
-              {/* ==========================================
-                  CONFIGURAÇÕES
-              ========================================== */}
-
               <TouchableOpacity
                 style={
                   styles.menuBtn
@@ -2400,16 +2143,10 @@ export default function Inicio() {
                       "center",
                   }}
                 >
-
                   Configurações
-
                 </Text>
 
               </TouchableOpacity>
-
-              {/* ==========================================
-                  MEUS LIVROS
-              ========================================== */}
 
               <TouchableOpacity
                 style={
@@ -2433,11 +2170,8 @@ export default function Inicio() {
                   navigation.navigate(
                     "LivrosAlugados",
                     {
-                      usuario:
-                        usuario,
-
-                      token:
-                        token,
+                      usuario,
+                      token,
                     }
                   );
 
@@ -2453,16 +2187,10 @@ export default function Inicio() {
                       "center",
                   }}
                 >
-
                   Meus Livros
-
                 </Text>
 
               </TouchableOpacity>
-
-              {/* ==========================================
-                  INSTALAR PWA
-              ========================================== */}
 
               {isInstallable && (
 
@@ -2500,10 +2228,6 @@ export default function Inicio() {
 
               )}
 
-              {/* ==========================================
-                  FECHAR
-              ========================================== */}
-
               <TouchableOpacity
                 onPress={() =>
                   setMenuVisible(
@@ -2512,31 +2236,24 @@ export default function Inicio() {
                 }
 
                 style={{
-                  padding:
-                    10,
+                  padding: 10,
 
                   position:
                     "absolute",
 
-                  top:
-                    10,
+                  top: 10,
 
-                  right:
-                    10,
+                  right: 10,
                 }}
               >
 
                 <Image
-                  source={
-                    Fechar
-                  }
+                  source={Fechar}
 
                   style={{
-                    width:
-                      30,
+                    width: 30,
 
-                    height:
-                      30,
+                    height: 30,
                   }}
                 />
 
@@ -2562,42 +2279,75 @@ const styles =
   StyleSheet.create({
 
     navbar: {
-      width:
-        "100%",
+      width: "100%",
 
-      height:
-        100,
+      height: 100,
 
       backgroundColor:
         "#ad000e",
 
-      flexDirection:
-        "row",
+      flexDirection: "row",
 
       justifyContent:
         "space-between",
 
-      alignItems:
-        "center",
+      alignItems: "center",
 
-      paddingHorizontal:
-        20,
+      paddingHorizontal: 20,
     },
 
     icon: {
-      width:
-        40,
+      width: 40,
 
-      height:
-        40,
+      height: 40,
 
-      resizeMode:
-        "contain",
+      resizeMode: "contain",
+    },
+
+    // =================================================
+    // CARD DO LIVRO
+    // =================================================
+
+    cardLivro: {
+      backgroundColor:
+        "white",
+
+      borderRadius: 20,
+
+      alignItems: "center",
+
+      justifyContent:
+        "flex-start",
+
+      alignSelf: "center",
+
+      overflow: "hidden",
+
+      elevation: 4,
+
+      shadowOffset: {
+        width: 0,
+
+        height: 2,
+      },
+
+      shadowOpacity: 0.15,
+
+      shadowRadius: 4,
+    },
+
+    capa: {
+      borderRadius: 8,
+
+      marginBottom: 10,
+
+      resizeMode: "cover",
+
+      maxWidth: "100%",
     },
 
     modal: {
-      flex:
-        1,
+      flex: 1,
 
       backgroundColor:
         "#000000aa",
@@ -2610,65 +2360,43 @@ const styles =
     },
 
     modalBox: {
-      width:
-        "80%",
+      width: "80%",
+
+      maxWidth: 500,
 
       backgroundColor:
         "white",
 
-      padding:
-        20,
+      padding: 20,
 
-      borderRadius:
-        10,
+      borderRadius: 10,
     },
 
     btnSalvar: {
       backgroundColor:
         "#fc5603",
 
-      padding:
-        12,
+      padding: 12,
 
       alignItems:
         "center",
 
-      borderRadius:
-        8,
+      borderRadius: 8,
 
-      marginTop:
-        8,
-    },
-
-    capa: {
-      height:
-        300,
-
-      borderRadius:
-        8,
-
-      marginBottom:
-        10,
-
-      resizeMode:
-        "cover",
+      marginTop: 8,
     },
 
     menuBtn: {
-      width:
-        "100%",
+      width: "100%",
 
-      padding:
-        12,
+      padding: 12,
 
       backgroundColor:
         "#ad000e",
 
-      borderRadius:
-        8,
+      borderRadius: 8,
 
-      marginBottom:
-        16,
+      marginBottom: 16,
     },
 
   });
