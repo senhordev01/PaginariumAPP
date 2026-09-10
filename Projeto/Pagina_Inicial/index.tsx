@@ -247,7 +247,7 @@ export default function Inicio() {
   }
 
   // ===================================================
-  // FETCH GET SEM CACHE
+  // FETCH SEM CACHE
   // ===================================================
 
   async function fetchSemCache(
@@ -268,12 +268,15 @@ export default function Inicio() {
       {
         ...options,
 
-        cache: "no-store",
+        cache:
+          "no-store",
 
         headers: {
           ...(options.headers || {}),
+
           "Cache-Control":
             "no-cache, no-store, must-revalidate",
+
           Pragma:
             "no-cache",
         },
@@ -293,23 +296,15 @@ export default function Inicio() {
     try {
 
       console.log(
-        "===================================="
-      );
-
-      console.log(
-        "🔄 BUSCANDO USUÁRIO NO SERVIDOR"
-      );
-
-      console.log(
-        "ID:",
-        usuarioId
+        "🔄 BUSCANDO USUÁRIO ATUALIZADO..."
       );
 
       const res =
         await fetchSemCache(
           `${BASE}/usuarios/${usuarioId}`,
           {
-            method: "GET",
+            method:
+              "GET",
 
             headers: {
               Authorization:
@@ -354,51 +349,16 @@ export default function Inicio() {
         await res.json();
 
       console.log(
-        "👤 USUÁRIO DO BANCO:",
+        "👤 USUÁRIO ATUAL:",
         usuarioServidor
       );
 
       console.log(
-        "💰 CRÉDITO REAL:",
+        "💰 CRÉDITO ATUAL:",
         usuarioServidor.credito
       );
 
-      return usuarioServidor;
-
-    } catch (erro) {
-
-      console.log(
-        "❌ Erro ao carregar usuário:",
-        erro
-      );
-
-      return null;
-    }
-  }
-
-  // ===================================================
-  // ATUALIZAR USUÁRIO
-  // ===================================================
-
-  async function atualizarUsuarioServidor(
-    tkn: string,
-    usuarioAtual: Usuario
-  ) {
-
-    const usuarioServidor =
-      await carregarUsuario(
-        tkn,
-        Number(usuarioAtual.id)
-      );
-
-    if (!usuarioServidor) {
-      return;
-    }
-
-    const usuarioAtualizado: Usuario =
-      {
-        ...usuarioAtual,
-
+      return {
         id:
           Number(
             usuarioServidor.id
@@ -416,35 +376,19 @@ export default function Inicio() {
           ),
 
         tipo:
-          usuarioAtual.tipo ??
+          usuarioServidor.tipo ??
           "normal",
       };
 
-    // =============================================
-    // ATUALIZAR ESTADO
-    // =============================================
+    } catch (erro) {
 
-    setUsuario(
-      usuarioAtualizado
-    );
+      console.log(
+        "❌ Erro ao carregar usuário:",
+        erro
+      );
 
-    // =============================================
-    // ATUALIZAR STORAGE
-    // =============================================
-
-    await AsyncStorage.setItem(
-      "usuario",
-      JSON.stringify(
-        usuarioAtualizado
-      )
-    );
-
-    console.log(
-      "✅ CRÉDITO SINCRONIZADO:",
-      usuarioAtualizado.credito
-    );
-
-    return usuarioAtualizado;
+      return null;
+    }
   }
 
   // ===================================================
@@ -458,14 +402,15 @@ export default function Inicio() {
     try {
 
       console.log(
-        "📚 Buscando aluguéis atuais..."
+        "📚 BUSCANDO ALUGUÉIS ATUAIS..."
       );
 
       const res =
         await fetchSemCache(
           `${BASE}/alugueis`,
           {
-            method: "GET",
+            method:
+              "GET",
 
             headers: {
               Authorization:
@@ -520,15 +465,11 @@ export default function Inicio() {
         return;
       }
 
-      // =============================================
-      // DATA ATUAL
-      // =============================================
-
       const hoje =
         obterDataHoje();
 
       // =============================================
-      // LIVROS ATIVOS
+      // SOMENTE ALUGUÉIS ATIVOS
       // =============================================
 
       const idsAtivos =
@@ -564,8 +505,10 @@ export default function Inicio() {
       );
 
       console.log(
-        "📚 LIVROS ALUGADOS ATIVOS:",
-        Array.from(idsAtivos)
+        "📚 LIVROS ATIVOS:",
+        Array.from(
+          idsAtivos
+        )
       );
 
     } catch (erro) {
@@ -586,14 +529,15 @@ export default function Inicio() {
     try {
 
       console.log(
-        "📖 Buscando livros atuais..."
+        "📖 BUSCANDO LIVROS ATUAIS..."
       );
 
       const res =
         await fetchSemCache(
           `${BASE}/livros`,
           {
-            method: "GET",
+            method:
+              "GET",
           }
         );
 
@@ -624,7 +568,7 @@ export default function Inicio() {
       );
 
       console.log(
-        "✅ Livros atualizados"
+        "✅ LIVROS ATUALIZADOS"
       );
 
     } catch (erro) {
@@ -637,7 +581,7 @@ export default function Inicio() {
   }
 
   // ===================================================
-  // SINCRONIZAÇÃO COMPLETA
+  // SINCRONIZAÇÃO AUTOMÁTICA
   // ===================================================
 
   const sincronizarDados =
@@ -654,7 +598,7 @@ export default function Inicio() {
           );
 
           console.log(
-            "🔄 SINCRONIZAÇÃO COMPLETA"
+            "🔄 SINCRONIZAÇÃO AUTOMÁTICA"
           );
 
           console.log(
@@ -662,7 +606,7 @@ export default function Inicio() {
           );
 
           // ===========================================
-          // 1. USUÁRIO / CRÉDITO
+          // 1. BUSCAR USUÁRIO NO BANCO
           // ===========================================
 
           const usuarioServidor =
@@ -680,10 +624,12 @@ export default function Inicio() {
             return;
           }
 
+          // ===========================================
+          // 2. ATUALIZAR USUÁRIO
+          // ===========================================
+
           const usuarioAtualizado: Usuario =
             {
-              ...usuarioAtual,
-
               id:
                 Number(
                   usuarioServidor.id
@@ -717,12 +663,12 @@ export default function Inicio() {
           );
 
           console.log(
-            "💰 Crédito sincronizado:",
+            "💰 CRÉDITO SINCRONIZADO:",
             usuarioAtualizado.credito
           );
 
           // ===========================================
-          // 2. ALUGUÉIS
+          // 3. ATUALIZAR ALUGUÉIS
           // ===========================================
 
           await carregarAlugueisAtivos(
@@ -730,7 +676,7 @@ export default function Inicio() {
           );
 
           // ===========================================
-          // 3. LIVROS
+          // 4. ATUALIZAR LIVROS
           // ===========================================
 
           await carregarLivros();
@@ -740,7 +686,7 @@ export default function Inicio() {
           );
 
           console.log(
-            "✅ SINCRONIZAÇÃO FINALIZADA"
+            "✅ SINCRONIZAÇÃO CONCLUÍDA"
           );
 
           console.log(
@@ -759,7 +705,7 @@ export default function Inicio() {
     );
 
   // ===================================================
-  // RECUPERAR SESSÃO AO ABRIR O APP
+  // RECUPERAR SESSÃO
   // ===================================================
 
   useEffect(() => {
@@ -772,12 +718,8 @@ export default function Inicio() {
       try {
 
         console.log(
-          "🚀 Iniciando sessão..."
+          "🚀 INICIANDO SESSÃO..."
         );
-
-        // =============================================
-        // PEGAR STORAGE
-        // =============================================
 
         const tokenSalvo =
           await AsyncStorage.getItem(
@@ -789,17 +731,9 @@ export default function Inicio() {
             "usuario"
           );
 
-        // =============================================
-        // TOKEN
-        // =============================================
-
-        let tokenAtual =
+        const tokenAtual =
           token ??
           tokenSalvo;
-
-        // =============================================
-        // USUÁRIO
-        // =============================================
 
         let usuarioAtual =
           usuario;
@@ -855,34 +789,6 @@ export default function Inicio() {
           return;
         }
 
-        // =============================================
-        // ATUALIZAR ESTADOS
-        // =============================================
-
-        if (
-          !token &&
-          tokenAtual
-        ) {
-
-          setToken(
-            tokenAtual
-          );
-        }
-
-        if (
-          !usuario &&
-          usuarioAtual
-        ) {
-
-          setUsuario(
-            usuarioAtual
-          );
-        }
-
-        // =============================================
-        // CANCELAMENTO
-        // =============================================
-
         if (
           cancelado
         ) {
@@ -891,7 +797,19 @@ export default function Inicio() {
         }
 
         // =============================================
-        // SINCRONIZAR
+        // ATUALIZAR ESTADO
+        // =============================================
+
+        setToken(
+          tokenAtual
+        );
+
+        setUsuario(
+          usuarioAtual
+        );
+
+        // =============================================
+        // SINCRONIZAR COM BANCO
         // =============================================
 
         await sincronizarDados(
@@ -914,13 +832,12 @@ export default function Inicio() {
 
       cancelado =
         true;
-
     };
 
   }, []);
 
   // ===================================================
-  // CARREGAR LIVROS AO INICIAR
+  // CARREGAR LIVROS INICIALMENTE
   // ===================================================
 
   useEffect(() => {
@@ -930,7 +847,7 @@ export default function Inicio() {
   }, []);
 
   // ===================================================
-  // ATUALIZAR ALUGUÉIS QUANDO TOKEN EXISTIR
+  // CARREGAR ALUGUÉIS QUANDO TOKEN EXISTIR
   // ===================================================
 
   useEffect(() => {
@@ -947,25 +864,11 @@ export default function Inicio() {
   }, [token]);
 
   // ===================================================
-  // ATUALIZAR AO VOLTAR PARA A TELA
+  // SINCRONIZAÇÃO AUTOMÁTICA AO VOLTAR
   // ===================================================
 
   useFocusEffect(
     useCallback(() => {
-
-      if (
-        !token ||
-        !usuario?.id
-      ) {
-
-        return;
-      }
-
-      const tokenAtual =
-        token;
-
-      const usuarioAtual =
-        usuario;
 
       let cancelado =
         false;
@@ -982,12 +885,78 @@ export default function Inicio() {
             "🔙 VOLTOU PARA INÍCIO"
           );
 
+          // =========================================
+          // SEMPRE PEGAR OS DADOS MAIS RECENTES
+          // DO ASYNC STORAGE
+          // =========================================
+
+          const tokenSalvo =
+            await AsyncStorage.getItem(
+              "token"
+            );
+
+          const usuarioSalvo =
+            await AsyncStorage.getItem(
+              "usuario"
+            );
+
+          if (
+            !tokenSalvo ||
+            !usuarioSalvo
+          ) {
+
+            return;
+          }
+
+          if (
+            cancelado
+          ) {
+
+            return;
+          }
+
+          let usuarioStorage: Usuario;
+
+          try {
+
+            usuarioStorage =
+              JSON.parse(
+                usuarioSalvo
+              );
+
+          } catch (erro) {
+
+            console.log(
+              "❌ Erro ao ler usuário do Storage:",
+              erro
+            );
+
+            return;
+          }
+
+          if (
+            !usuarioStorage?.id
+          ) {
+
+            return;
+          }
+
           console.log(
-            "🔄 SINCRONIZANDO DADOS..."
+            "👤 USUÁRIO DO STORAGE:",
+            usuarioStorage
           );
 
           console.log(
-            "===================================="
+            "🔄 BUSCANDO DADOS NOVAMENTE..."
+          );
+
+          // =========================================
+          // SINCRONIZAÇÃO COMPLETA
+          // =========================================
+
+          await sincronizarDados(
+            tokenSalvo,
+            usuarioStorage
           );
 
           if (
@@ -997,19 +966,26 @@ export default function Inicio() {
             return;
           }
 
-          await sincronizarDados(
-            tokenAtual,
-            usuarioAtual
+          // =========================================
+          // GARANTIR TOKEN ATUAL
+          // =========================================
+
+          setToken(
+            tokenSalvo
           );
 
           console.log(
-            "✅ DADOS ATUALIZADOS AO VOLTAR"
+            "✅ DADOS ATUALIZADOS AUTOMATICAMENTE"
+          );
+
+          console.log(
+            "===================================="
           );
 
         } catch (erro) {
 
           console.log(
-            "❌ Erro ao atualizar ao voltar:",
+            "❌ Erro ao sincronizar ao voltar:",
             erro
           );
         }
@@ -1024,161 +1000,9 @@ export default function Inicio() {
       };
 
     }, [
-      token,
-      usuario?.id,
       sincronizarDados,
     ])
   );
-
-  // ===================================================
-  // ATUALIZAR PWA / NAVEGADOR
-  // ===================================================
-
-  useEffect(() => {
-
-    if (
-      Platform.OS !== "web"
-    ) {
-
-      return;
-    }
-
-    if (
-      typeof window === "undefined"
-    ) {
-
-      return;
-    }
-
-    // ================================================
-    // FUNÇÃO DE ATUALIZAÇÃO
-    // ================================================
-
-    async function atualizarPWA() {
-
-      if (
-        !token ||
-        !usuario?.id
-      ) {
-
-        return;
-      }
-
-      try {
-
-        console.log(
-          "===================================="
-        );
-
-        console.log(
-          "🌐 PWA VOLTOU A FICAR VISÍVEL"
-        );
-
-        console.log(
-          "🔄 ATUALIZANDO DADOS DO SERVIDOR..."
-        );
-
-        console.log(
-          "===================================="
-        );
-
-        await sincronizarDados(
-          token,
-          usuario
-        );
-
-        console.log(
-          "✅ PWA SINCRONIZADO"
-        );
-
-      } catch (erro) {
-
-        console.log(
-          "❌ Erro ao atualizar PWA:",
-          erro
-        );
-      }
-    }
-
-    // ================================================
-    // VISIBILITYCHANGE
-    // ================================================
-
-    function quandoFicarVisivel() {
-
-      if (
-        document.visibilityState ===
-        "visible"
-      ) {
-
-        atualizarPWA();
-      }
-    }
-
-    // ================================================
-    // FOCUS
-    // ================================================
-
-    function quandoGanharFoco() {
-
-      atualizarPWA();
-    }
-
-    // ================================================
-    // PAGESHOW
-    // ================================================
-
-    function quandoMostrarPagina() {
-
-      atualizarPWA();
-    }
-
-    // ================================================
-    // EVENTOS
-    // ================================================
-
-    document.addEventListener(
-      "visibilitychange",
-      quandoFicarVisivel
-    );
-
-    window.addEventListener(
-      "focus",
-      quandoGanharFoco
-    );
-
-    window.addEventListener(
-      "pageshow",
-      quandoMostrarPagina
-    );
-
-    // ================================================
-    // LIMPAR EVENTOS
-    // ================================================
-
-    return () => {
-
-      document.removeEventListener(
-        "visibilitychange",
-        quandoFicarVisivel
-      );
-
-      window.removeEventListener(
-        "focus",
-        quandoGanharFoco
-      );
-
-      window.removeEventListener(
-        "pageshow",
-        quandoMostrarPagina
-      );
-    };
-
-  }, [
-    token,
-    usuario?.id,
-    sincronizarDados,
-  ]);
 
   // ===================================================
   // FILTRO DE LIVROS
@@ -1288,14 +1112,15 @@ export default function Inicio() {
     try {
 
       console.log(
-        "📚 Realizando aluguel..."
+        "📚 REALIZANDO ALUGUEL..."
       );
 
       const res =
         await fetch(
           `${BASE}/alugueis`,
           {
-            method: "POST",
+            method:
+              "POST",
 
             cache:
               "no-store",
@@ -1339,10 +1164,6 @@ export default function Inicio() {
         return;
       }
 
-      // =============================================
-      // RESPOSTA
-      // =============================================
-
       const data =
         await res.json();
 
@@ -1365,11 +1186,11 @@ export default function Inicio() {
       }
 
       console.log(
-        "✅ Aluguel realizado"
+        "✅ ALUGUEL REALIZADO"
       );
 
       console.log(
-        "💰 Novo crédito:",
+        "💰 NOVO CRÉDITO:",
         data.novo_credito
       );
 
@@ -1409,26 +1230,12 @@ export default function Inicio() {
       );
 
       // =============================================
-      // BUSCAR DADOS NOVAMENTE NO BANCO
+      // ATUALIZAR LIVROS ALUGADOS
       // =============================================
 
-      if (
+      await carregarAlugueisAtivos(
         token
-      ) {
-
-        const usuarioAtual =
-          usuario;
-
-        if (
-          usuarioAtual
-        ) {
-
-          await sincronizarDados(
-            token,
-            usuarioAtual
-          );
-        }
-      }
+      );
 
       // =============================================
       // FECHAR MODAL
@@ -2167,7 +1974,7 @@ export default function Inicio() {
             <View
               style={
                 styles.modalBox
-              }
+            }
             >
 
               <Text
