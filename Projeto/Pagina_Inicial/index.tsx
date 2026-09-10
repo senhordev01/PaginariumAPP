@@ -100,10 +100,12 @@ export default function Inicio() {
 
   async function carregarAlugueisAtivos(tkn: string) {
     try {
+      console.log("TOKEN USADO EM /alugueis:", tkn);
       const res = await fetch(`${BASE}/alugueis`, {
+        cache: "no-store",
         headers: { Authorization: `Bearer ${tkn}` },
       });
-
+      
       if (res.status === 401 || res.status === 403) {
         await handleUnauthorized();
         return;
@@ -130,6 +132,7 @@ export default function Inicio() {
     async function recuperarSessao() {
       if (!token) {
         const tokenSalvo = await AsyncStorage.getItem("token");
+        console.log("TOKEN SALVO:", tokenSalvo);
         const usuarioSalvo = await AsyncStorage.getItem("usuario");
 
         if (!tokenSalvo) {
@@ -139,6 +142,7 @@ export default function Inicio() {
 
         try {
           const res = await fetch(`${BASE}/alugueis`, {
+            cache: "no-store",
             headers: { Authorization: `Bearer ${tokenSalvo}` },
           });
 
@@ -176,7 +180,7 @@ export default function Inicio() {
 
   async function carregarLivros() {
     try {
-      const res = await fetch(`${BASE}/livros`);
+      const res = await fetch(`${BASE}/livros`, { cache: "no-store" });
       const data: Livro[] = await res.json();
       setLivros(data.map((l) => ({ ...l, valor: Number(l.valor) })));
     } catch (err) {
@@ -219,6 +223,7 @@ export default function Inicio() {
     try {
       const res = await fetch(`${BASE}/alugueis`, {
         method: "POST",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -246,10 +251,16 @@ export default function Inicio() {
         return atualizado;
       });
 
-      setLivrosAlugadosIds((prev) => new Set(prev).add(livroSelecionado.id));
+      
+      if (token) {
+        await carregarAlugueisAtivos(token);
+      }
       setLivroSelecionado(null);
       setInserirValor("");
       Alert.alert("Sucesso!", `Livro alugado por ${meses} ${meses === 1 ? "mês" : "meses"}!`);
+      
+      // Atualiza os livros alugados diretamente pela API
+
     } catch (err) {
       Alert.alert("Erro", "Não foi possível conectar ao servidor");
     } finally {
