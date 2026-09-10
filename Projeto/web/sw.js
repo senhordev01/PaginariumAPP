@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paginarium-v2';
+const CACHE_NAME = 'paginarium-v3';
 
 const urlsToCache = [
   '/',
@@ -31,14 +31,33 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // Apenas requisições GET
   if (event.request.method !== 'GET') return;
 
-  // Nunca guardar o manifest no cache
-  if (event.request.url.includes('/manifest.json')) {
+  // API NUNCA deve usar o cache do Service Worker
+  if (
+    url.hostname === 'paginariumapi.onrender.com' ||
+    url.pathname.startsWith('/alugueis') ||
+    url.pathname.startsWith('/livros')
+  ) {
+    event.respondWith(
+      fetch(event.request, {
+        cache: 'no-store'
+      })
+    );
+    return;
+  }
+
+  // Manifest sempre vem da rede
+  if (url.pathname === '/manifest.json') {
     event.respondWith(fetch(event.request));
     return;
   }
 
+  // Arquivos do aplicativo:
+  // tenta cache primeiro e depois rede
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request).then(fetchResponse => {
