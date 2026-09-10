@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+
 import {
   StyleSheet,
   View,
@@ -22,8 +23,11 @@ import {
 } from "@react-navigation/native";
 
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { usePWAInstall } from "../hooks/usePWAInstall";
 
 import Lua from "../assets/Lua_PixelArt.png";
@@ -34,8 +38,15 @@ import Opcoes_Escura from "../assets/Opcoes_Escura.png";
 import Fechar from "../assets/Fechar.png";
 import Lupa from "../assets/Lupa.png";
 
-// const BASE = "http://10.0.10.209:8080";
+// =====================================================
+// API
+// =====================================================
+
 const BASE = "https://paginariumapi.onrender.com";
+
+// =====================================================
+// TIPOS
+// =====================================================
 
 interface Usuario {
   id: number;
@@ -77,12 +88,25 @@ type NavigationProps =
 type InicioRouteProp =
   RouteProp<RootStackParamList, "Inicio">;
 
+// =====================================================
+// COMPONENTE
+// =====================================================
+
 export default function Inicio() {
+
+  // ===================================================
+  // DIMENSÃO
+  // ===================================================
+
   const { width } =
     useWindowDimensions();
 
   const Mobile =
     width < 600;
+
+  // ===================================================
+  // NAVEGAÇÃO
+  // ===================================================
 
   const navigation =
     useNavigation<NavigationProps>();
@@ -90,9 +114,9 @@ export default function Inicio() {
   const route =
     useRoute<InicioRouteProp>();
 
-  // =====================================================
+  // ===================================================
   // ESTADOS
-  // =====================================================
+  // ===================================================
 
   const [usuario, setUsuario] =
     useState<Usuario | undefined>(
@@ -133,19 +157,28 @@ export default function Inicio() {
   const [inserir_valor, setInserirValor] =
     useState("");
 
+  // ===================================================
+  // TEMA
+  // ===================================================
+
   const isDark =
     tema === "black";
+
+  // ===================================================
+  // PWA
+  // ===================================================
 
   const {
     isInstallable,
     install,
   } = usePWAInstall();
 
-  // =====================================================
+  // ===================================================
   // LOGOUT
-  // =====================================================
+  // ===================================================
 
   async function logout() {
+
     await AsyncStorage.removeItem(
       "token"
     );
@@ -159,11 +192,12 @@ export default function Inicio() {
     );
   }
 
-  // =====================================================
+  // ===================================================
   // SESSÃO EXPIRADA
-  // =====================================================
+  // ===================================================
 
   async function handleUnauthorized() {
+
     await AsyncStorage.removeItem(
       "token"
     );
@@ -187,25 +221,95 @@ export default function Inicio() {
     );
   }
 
-  // =====================================================
-  // CARREGAR ALUGUÉIS ATIVOS
-  // =====================================================
+  // ===================================================
+  // DATA DE HOJE
+  // ===================================================
 
-  async function carregarAlugueisAtivos(
-    tkn: string
+  function obterDataHoje() {
+
+    const hoje =
+      new Date();
+
+    const ano =
+      hoje.getFullYear();
+
+    const mes =
+      String(
+        hoje.getMonth() + 1
+      ).padStart(2, "0");
+
+    const dia =
+      String(
+        hoje.getDate()
+      ).padStart(2, "0");
+
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  // ===================================================
+  // FETCH GET SEM CACHE
+  // ===================================================
+
+  async function fetchSemCache(
+    url: string,
+    options: RequestInit = {}
   ) {
+
+    const separador =
+      url.includes("?")
+        ? "&"
+        : "?";
+
+    const urlAtualizada =
+      `${url}${separador}_=${Date.now()}`;
+
+    return fetch(
+      urlAtualizada,
+      {
+        ...options,
+
+        cache: "no-store",
+
+        headers: {
+          ...(options.headers || {}),
+          "Cache-Control":
+            "no-cache, no-store, must-revalidate",
+          Pragma:
+            "no-cache",
+        },
+      }
+    );
+  }
+
+  // ===================================================
+  // CARREGAR USUÁRIO DO SERVIDOR
+  // ===================================================
+
+  async function carregarUsuario(
+    tkn: string,
+    usuarioId: number
+  ): Promise<Usuario | null> {
+
     try {
+
       console.log(
-        "TOKEN USADO EM /alugueis:",
-        tkn
+        "===================================="
+      );
+
+      console.log(
+        "🔄 BUSCANDO USUÁRIO NO SERVIDOR"
+      );
+
+      console.log(
+        "ID:",
+        usuarioId
       );
 
       const res =
-        await fetch(
-          `${BASE}/alugueis`,
+        await fetchSemCache(
+          `${BASE}/usuarios/${usuarioId}`,
           {
             method: "GET",
-            cache: "no-store",
 
             headers: {
               Authorization:
@@ -214,34 +318,193 @@ export default function Inicio() {
           }
         );
 
-      // =================================================
+      // =============================================
       // TOKEN INVÁLIDO
-      // =================================================
+      // =============================================
 
       if (
         res.status === 401 ||
         res.status === 403
       ) {
+
         await handleUnauthorized();
+
+        return null;
+      }
+
+      // =============================================
+      // ERRO
+      // =============================================
+
+      if (!res.ok) {
+
+        console.log(
+          "❌ Erro ao buscar usuário:",
+          res.status
+        );
+
+        return null;
+      }
+
+      // =============================================
+      // DADOS
+      // =============================================
+
+      const usuarioServidor =
+        await res.json();
+
+      console.log(
+        "👤 USUÁRIO DO BANCO:",
+        usuarioServidor
+      );
+
+      console.log(
+        "💰 CRÉDITO REAL:",
+        usuarioServidor.credito
+      );
+
+      return usuarioServidor;
+
+    } catch (erro) {
+
+      console.log(
+        "❌ Erro ao carregar usuário:",
+        erro
+      );
+
+      return null;
+    }
+  }
+
+  // ===================================================
+  // ATUALIZAR USUÁRIO
+  // ===================================================
+
+  async function atualizarUsuarioServidor(
+    tkn: string,
+    usuarioAtual: Usuario
+  ) {
+
+    const usuarioServidor =
+      await carregarUsuario(
+        tkn,
+        Number(usuarioAtual.id)
+      );
+
+    if (!usuarioServidor) {
+      return;
+    }
+
+    const usuarioAtualizado: Usuario =
+      {
+        ...usuarioAtual,
+
+        id:
+          Number(
+            usuarioServidor.id
+          ),
+
+        nome:
+          usuarioServidor.nome,
+
+        email:
+          usuarioServidor.email,
+
+        credito:
+          Number(
+            usuarioServidor.credito
+          ),
+
+        tipo:
+          usuarioAtual.tipo ??
+          "normal",
+      };
+
+    // =============================================
+    // ATUALIZAR ESTADO
+    // =============================================
+
+    setUsuario(
+      usuarioAtualizado
+    );
+
+    // =============================================
+    // ATUALIZAR STORAGE
+    // =============================================
+
+    await AsyncStorage.setItem(
+      "usuario",
+      JSON.stringify(
+        usuarioAtualizado
+      )
+    );
+
+    console.log(
+      "✅ CRÉDITO SINCRONIZADO:",
+      usuarioAtualizado.credito
+    );
+
+    return usuarioAtualizado;
+  }
+
+  // ===================================================
+  // CARREGAR ALUGUÉIS ATIVOS
+  // ===================================================
+
+  async function carregarAlugueisAtivos(
+    tkn: string
+  ) {
+
+    try {
+
+      console.log(
+        "📚 Buscando aluguéis atuais..."
+      );
+
+      const res =
+        await fetchSemCache(
+          `${BASE}/alugueis`,
+          {
+            method: "GET",
+
+            headers: {
+              Authorization:
+                `Bearer ${tkn}`,
+            },
+          }
+        );
+
+      // =============================================
+      // TOKEN INVÁLIDO
+      // =============================================
+
+      if (
+        res.status === 401 ||
+        res.status === 403
+      ) {
+
+        await handleUnauthorized();
+
         return;
       }
 
-      // =================================================
+      // =============================================
       // ERRO
-      // =================================================
+      // =============================================
 
       if (!res.ok) {
+
         console.log(
-          "Erro ao buscar aluguéis:",
+          "❌ Erro ao buscar aluguéis:",
           res.status
         );
 
         return;
       }
 
-      // =================================================
+      // =============================================
       // DADOS
-      // =================================================
+      // =============================================
 
       const data =
         await res.json();
@@ -249,29 +512,49 @@ export default function Inicio() {
       if (
         !Array.isArray(data)
       ) {
+
+        console.log(
+          "⚠️ Resposta de aluguéis inválida"
+        );
+
         return;
       }
 
-      // =================================================
-      // FILTRAR ALUGUÉIS ATIVOS
-      // =================================================
+      // =============================================
+      // DATA ATUAL
+      // =============================================
 
       const hoje =
-        new Date();
+        obterDataHoje();
+
+      // =============================================
+      // LIVROS ATIVOS
+      // =============================================
 
       const idsAtivos =
         new Set<number>(
           data
             .filter(
-              (a: any) =>
-                new Date(
-                  a.data_fim
-                ) >= hoje
+              (aluguel: any) => {
+
+                if (
+                  !aluguel.data_fim
+                ) {
+                  return false;
+                }
+
+                return (
+                  String(
+                    aluguel.data_fim
+                  ).substring(0, 10)
+                  >= hoje
+                );
+              }
             )
             .map(
-              (a: any) =>
+              (aluguel: any) =>
                 Number(
-                  a.livro_id
+                  aluguel.livro_id
                 )
             )
         );
@@ -281,36 +564,43 @@ export default function Inicio() {
       );
 
       console.log(
-        "📚 Livros alugados:",
-        idsAtivos
+        "📚 LIVROS ALUGADOS ATIVOS:",
+        Array.from(idsAtivos)
       );
 
-    } catch (err) {
+    } catch (erro) {
+
       console.log(
-        "❌ Erro alugueis:",
-        err
+        "❌ Erro ao carregar aluguéis:",
+        erro
       );
     }
   }
 
-  // =====================================================
+  // ===================================================
   // CARREGAR LIVROS
-  // =====================================================
+  // ===================================================
 
   async function carregarLivros() {
+
     try {
+
+      console.log(
+        "📖 Buscando livros atuais..."
+      );
+
       const res =
-        await fetch(
+        await fetchSemCache(
           `${BASE}/livros`,
           {
             method: "GET",
-            cache: "no-store",
           }
         );
 
       if (!res.ok) {
+
         console.log(
-          "Erro ao carregar livros:",
+          "❌ Erro ao carregar livros:",
           res.status
         );
 
@@ -322,185 +612,73 @@ export default function Inicio() {
 
       setLivros(
         data.map(
-          (l) => ({
-            ...l,
+          (livro) => ({
+            ...livro,
+
             valor:
               Number(
-                l.valor
+                livro.valor
               ),
           })
         )
       );
 
-    } catch (err) {
+      console.log(
+        "✅ Livros atualizados"
+      );
+
+    } catch (erro) {
+
       console.log(
         "❌ Erro ao carregar livros:",
-        err
+        erro
       );
     }
   }
 
-  // =====================================================
-  // RECUPERAR SESSÃO
-  // =====================================================
+  // ===================================================
+  // SINCRONIZAÇÃO COMPLETA
+  // ===================================================
 
-  useEffect(() => {
+  const sincronizarDados =
+    useCallback(
+      async (
+        tkn: string,
+        usuarioAtual: Usuario
+      ) => {
 
-    async function recuperarSessao() {
+        try {
 
-      try {
-
-        let tokenAtual =
-          token;
-
-        let usuarioAtual =
-          usuario;
-
-        // =================================================
-        // RECUPERAR DADOS SALVOS
-        // =================================================
-
-        const tokenSalvo =
-          await AsyncStorage.getItem(
-            "token"
+          console.log(
+            "===================================="
           );
 
-        const usuarioSalvo =
-          await AsyncStorage.getItem(
-            "usuario"
+          console.log(
+            "🔄 SINCRONIZAÇÃO COMPLETA"
           );
 
-        // =================================================
-        // 1. TOKEN
-        // =================================================
+          console.log(
+            "===================================="
+          );
 
-        if (!tokenAtual) {
+          // ===========================================
+          // 1. USUÁRIO / CRÉDITO
+          // ===========================================
 
-          if (!tokenSalvo) {
-
-            navigation.navigate(
-              "Login"
+          const usuarioServidor =
+            await carregarUsuario(
+              tkn,
+              Number(
+                usuarioAtual.id
+              )
             );
+
+          if (
+            !usuarioServidor
+          ) {
 
             return;
           }
-
-          tokenAtual =
-            tokenSalvo;
-
-          setToken(
-            tokenSalvo
-          );
-        }
-
-        // =================================================
-        // 2. USUÁRIO
-        // =================================================
-
-        if (
-          !usuarioAtual &&
-          usuarioSalvo
-        ) {
-
-          try {
-
-            usuarioAtual =
-              JSON.parse(
-                usuarioSalvo
-              );
-
-            setUsuario(
-              usuarioAtual
-            );
-
-          } catch (erro) {
-
-            console.log(
-              "Erro ao ler usuário salvo:",
-              erro
-            );
-
-          }
-        }
-
-        // =================================================
-        // VERIFICAR SESSÃO
-        // =================================================
-
-        if (
-          !tokenAtual ||
-          !usuarioAtual?.id
-        ) {
-
-          navigation.navigate(
-            "Login"
-          );
-
-          return;
-        }
-
-        console.log(
-          "TOKEN:",
-          tokenAtual
-        );
-
-        console.log(
-          "ID DO USUÁRIO:",
-          usuarioAtual.id
-        );
-
-        // =================================================
-        // 3. BUSCAR USUÁRIO NO BANCO
-        // =================================================
-
-        const usuarioRes =
-          await fetch(
-            `${BASE}/usuarios/${usuarioAtual.id}`,
-            {
-              method: "GET",
-              cache: "no-store",
-
-              headers: {
-                Authorization:
-                  `Bearer ${tokenAtual}`,
-              },
-            }
-          );
-
-        // =================================================
-        // TOKEN INVÁLIDO
-        // =================================================
-
-        if (
-          usuarioRes.status === 401 ||
-          usuarioRes.status === 403
-        ) {
-
-          await handleUnauthorized();
-
-          return;
-        }
-
-        // =================================================
-        // USUÁRIO ENCONTRADO
-        // =================================================
-
-        if (
-          usuarioRes.ok
-        ) {
-
-          const usuarioServidor =
-            await usuarioRes.json();
-
-          console.log(
-            "USUÁRIO DO BANCO:",
-            usuarioServidor
-          );
-
-          console.log(
-            "💰 CRÉDITO ATUAL:",
-            usuarioServidor.credito
-          );
 
           const usuarioAtualizado: Usuario =
             {
@@ -538,49 +716,212 @@ export default function Inicio() {
             )
           );
 
-          usuarioAtual =
-            usuarioAtualizado;
-
           console.log(
-            "💰 CRÉDITO SINCRONIZADO:",
+            "💰 Crédito sincronizado:",
             usuarioAtualizado.credito
           );
 
-        } else {
+          // ===========================================
+          // 2. ALUGUÉIS
+          // ===========================================
 
-          console.log(
-            "Erro ao buscar usuário:",
-            usuarioRes.status
+          await carregarAlugueisAtivos(
+            tkn
           );
 
+          // ===========================================
+          // 3. LIVROS
+          // ===========================================
+
+          await carregarLivros();
+
+          console.log(
+            "===================================="
+          );
+
+          console.log(
+            "✅ SINCRONIZAÇÃO FINALIZADA"
+          );
+
+          console.log(
+            "===================================="
+          );
+
+        } catch (erro) {
+
+          console.log(
+            "❌ Erro na sincronização:",
+            erro
+          );
         }
+      },
+      []
+    );
 
-        // =================================================
-        // 4. BUSCAR ALUGUÉIS
-        // =================================================
+  // ===================================================
+  // RECUPERAR SESSÃO AO ABRIR O APP
+  // ===================================================
 
-        await carregarAlugueisAtivos(
-          tokenAtual
+  useEffect(() => {
+
+    let cancelado =
+      false;
+
+    async function recuperarSessao() {
+
+      try {
+
+        console.log(
+          "🚀 Iniciando sessão..."
         );
 
-      } catch (err) {
+        // =============================================
+        // PEGAR STORAGE
+        // =============================================
+
+        const tokenSalvo =
+          await AsyncStorage.getItem(
+            "token"
+          );
+
+        const usuarioSalvo =
+          await AsyncStorage.getItem(
+            "usuario"
+          );
+
+        // =============================================
+        // TOKEN
+        // =============================================
+
+        let tokenAtual =
+          token ??
+          tokenSalvo;
+
+        // =============================================
+        // USUÁRIO
+        // =============================================
+
+        let usuarioAtual =
+          usuario;
+
+        if (
+          !usuarioAtual &&
+          usuarioSalvo
+        ) {
+
+          try {
+
+            usuarioAtual =
+              JSON.parse(
+                usuarioSalvo
+              );
+
+          } catch (erro) {
+
+            console.log(
+              "❌ Erro ao ler usuário:",
+              erro
+            );
+          }
+        }
+
+        // =============================================
+        // SEM TOKEN
+        // =============================================
+
+        if (
+          !tokenAtual
+        ) {
+
+          navigation.navigate(
+            "Login"
+          );
+
+          return;
+        }
+
+        // =============================================
+        // SEM USUÁRIO
+        // =============================================
+
+        if (
+          !usuarioAtual?.id
+        ) {
+
+          navigation.navigate(
+            "Login"
+          );
+
+          return;
+        }
+
+        // =============================================
+        // ATUALIZAR ESTADOS
+        // =============================================
+
+        if (
+          !token &&
+          tokenAtual
+        ) {
+
+          setToken(
+            tokenAtual
+          );
+        }
+
+        if (
+          !usuario &&
+          usuarioAtual
+        ) {
+
+          setUsuario(
+            usuarioAtual
+          );
+        }
+
+        // =============================================
+        // CANCELAMENTO
+        // =============================================
+
+        if (
+          cancelado
+        ) {
+
+          return;
+        }
+
+        // =============================================
+        // SINCRONIZAR
+        // =============================================
+
+        await sincronizarDados(
+          tokenAtual,
+          usuarioAtual
+        );
+
+      } catch (erro) {
 
         console.log(
           "❌ Erro ao recuperar sessão:",
-          err
+          erro
         );
-
       }
-
     }
 
     recuperarSessao();
 
+    return () => {
+
+      cancelado =
+        true;
+
+    };
+
   }, []);
 
-  // =====================================================
-  // CARREGAR LIVROS AO ABRIR
-  // =====================================================
+  // ===================================================
+  // CARREGAR LIVROS AO INICIAR
+  // ===================================================
 
   useEffect(() => {
 
@@ -588,476 +929,305 @@ export default function Inicio() {
 
   }, []);
 
-  // =====================================================
-  // CARREGAR ALUGUÉIS QUANDO TOKEN MUDAR
-  // =====================================================
+  // ===================================================
+  // ATUALIZAR ALUGUÉIS QUANDO TOKEN EXISTIR
+  // ===================================================
 
   useEffect(() => {
 
-    if (token) {
+    if (
+      token
+    ) {
 
       carregarAlugueisAtivos(
         token
       );
-
     }
 
   }, [token]);
 
-  // =====================================================
+  // ===================================================
   // ATUALIZAR AO VOLTAR PARA A TELA
-  // =====================================================
+  // ===================================================
 
   useFocusEffect(
-
     useCallback(() => {
 
       if (
         !token ||
         !usuario?.id
       ) {
+
         return;
       }
 
-      // Guardamos os valores em constantes.
-      // Isso evita o erro do TypeScript.
-      const tokenAtual: string =
+      const tokenAtual =
         token;
 
-      const usuarioAtual: Usuario =
+      const usuarioAtual =
         usuario;
 
-      const usuarioId: number =
-        Number(
-          usuarioAtual.id
-        );
+      let cancelado =
+        false;
 
       async function atualizarAoVoltar() {
 
         try {
 
           console.log(
-            "🔄 Atualizando tela ao voltar..."
+            "===================================="
           );
 
-          // =================================================
-          // 1. ATUALIZAR USUÁRIO
-          // =================================================
+          console.log(
+            "🔙 VOLTOU PARA INÍCIO"
+          );
 
-          const usuarioRes =
-            await fetch(
-              `${BASE}/usuarios/${usuarioId}`,
-              {
-                method: "GET",
-                cache: "no-store",
+          console.log(
+            "🔄 SINCRONIZANDO DADOS..."
+          );
 
-                headers: {
-                  Authorization:
-                    `Bearer ${tokenAtual}`,
-                },
-              }
-            );
-
-          // =================================================
-          // TOKEN EXPIRADO
-          // =================================================
+          console.log(
+            "===================================="
+          );
 
           if (
-            usuarioRes.status === 401 ||
-            usuarioRes.status === 403
+            cancelado
           ) {
-
-            await handleUnauthorized();
 
             return;
           }
 
-          // =================================================
-          // ATUALIZAR CRÉDITO
-          // =================================================
-
-          if (
-            usuarioRes.ok
-          ) {
-
-            const usuarioServidor =
-              await usuarioRes.json();
-
-            console.log(
-              "👤 Usuário atualizado:",
-              usuarioServidor
-            );
-
-            console.log(
-              "💰 Crédito vindo do banco:",
-              usuarioServidor.credito
-            );
-
-            const usuarioAtualizado: Usuario =
-              {
-                ...usuarioAtual,
-
-                id:
-                  Number(
-                    usuarioServidor.id
-                  ),
-
-                nome:
-                  usuarioServidor.nome,
-
-                email:
-                  usuarioServidor.email,
-
-                credito:
-                  Number(
-                    usuarioServidor.credito
-                  ),
-
-                tipo:
-                  usuarioAtual.tipo ??
-                  "normal",
-              };
-
-            setUsuario(
-              usuarioAtualizado
-            );
-
-            await AsyncStorage.setItem(
-              "usuario",
-              JSON.stringify(
-                usuarioAtualizado
-              )
-            );
-
-            console.log(
-              "💰 Crédito atualizado:",
-              usuarioAtualizado.credito
-            );
-
-          } else {
-
-            console.log(
-              "Erro ao atualizar usuário:",
-              usuarioRes.status
-            );
-
-          }
-
-          // =================================================
-          // 2. ATUALIZAR ALUGUÉIS
-          // =================================================
-
-          await carregarAlugueisAtivos(
-            tokenAtual
+          await sincronizarDados(
+            tokenAtual,
+            usuarioAtual
           );
 
-          // =================================================
-          // 3. ATUALIZAR LIVROS
-          // =================================================
-
-          await carregarLivros();
-
           console.log(
-            "✅ Tela atualizada!"
+            "✅ DADOS ATUALIZADOS AO VOLTAR"
           );
 
         } catch (erro) {
 
           console.log(
-            "❌ Erro ao atualizar tela ao voltar:",
+            "❌ Erro ao atualizar ao voltar:",
             erro
           );
-
         }
-
       }
 
       atualizarAoVoltar();
 
-    }, [token, usuario?.id])
+      return () => {
 
+        cancelado =
+          true;
+      };
+
+    }, [
+      token,
+      usuario?.id,
+      sincronizarDados,
+    ])
   );
 
-  // =====================================================
-  // ATUALIZAR PWA AO VOLTAR A FICAR VISÍVEL
-  // =====================================================
+  // ===================================================
+  // ATUALIZAR PWA / NAVEGADOR
+  // ===================================================
 
   useEffect(() => {
 
-    // Só funciona no navegador/PWA
     if (
       Platform.OS !== "web"
     ) {
+
       return;
     }
 
-    // Segurança para evitar erro caso
-    // document não esteja disponível.
     if (
-      typeof document === "undefined"
+      typeof window === "undefined"
     ) {
+
       return;
     }
 
-    function atualizarQuandoVoltar() {
+    // ================================================
+    // FUNÇÃO DE ATUALIZAÇÃO
+    // ================================================
 
-      // =================================================
-      // VERIFICAR VISIBILIDADE
-      // =================================================
-
-      if (
-        document.visibilityState !==
-        "visible"
-      ) {
-        return;
-      }
-
-      // =================================================
-      // VERIFICAR SESSÃO
-      // =================================================
+    async function atualizarPWA() {
 
       if (
         !token ||
         !usuario?.id
       ) {
+
         return;
       }
 
-      // Guardamos os valores para o TypeScript
-      // saber que eles existem.
-      const tokenAtual: string =
-        token;
+      try {
 
-      const usuarioAtual: Usuario =
-        usuario;
-
-      const usuarioId: number =
-        Number(
-          usuarioAtual.id
+        console.log(
+          "===================================="
         );
 
-      console.log(
-        "🔄 PWA voltou para a tela. Atualizando..."
-      );
+        console.log(
+          "🌐 PWA VOLTOU A FICAR VISÍVEL"
+        );
 
-      async function atualizar() {
+        console.log(
+          "🔄 ATUALIZANDO DADOS DO SERVIDOR..."
+        );
 
-        try {
+        console.log(
+          "===================================="
+        );
 
-          // =================================================
-          // 1. ATUALIZAR USUÁRIO
-          // =================================================
+        await sincronizarDados(
+          token,
+          usuario
+        );
 
-          const usuarioRes =
-            await fetch(
-              `${BASE}/usuarios/${usuarioId}`,
-              {
-                method: "GET",
-                cache: "no-store",
+        console.log(
+          "✅ PWA SINCRONIZADO"
+        );
 
-                headers: {
-                  Authorization:
-                    `Bearer ${tokenAtual}`,
-                },
-              }
-            );
+      } catch (erro) {
 
-          // =================================================
-          // TOKEN EXPIRADO
-          // =================================================
-
-          if (
-            usuarioRes.status === 401 ||
-            usuarioRes.status === 403
-          ) {
-
-            await handleUnauthorized();
-
-            return;
-          }
-
-          // =================================================
-          // USUÁRIO ENCONTRADO
-          // =================================================
-
-          if (
-            usuarioRes.ok
-          ) {
-
-            const usuarioServidor =
-              await usuarioRes.json();
-
-            console.log(
-              "👤 Usuário atualizado no PWA:",
-              usuarioServidor
-            );
-
-            const usuarioAtualizado: Usuario =
-              {
-                ...usuarioAtual,
-
-                id:
-                  Number(
-                    usuarioServidor.id
-                  ),
-
-                nome:
-                  usuarioServidor.nome,
-
-                email:
-                  usuarioServidor.email,
-
-                credito:
-                  Number(
-                    usuarioServidor.credito
-                  ),
-
-                tipo:
-                  usuarioAtual.tipo ??
-                  "normal",
-              };
-
-            // =================================================
-            // ATUALIZAR ESTADO
-            // =================================================
-
-            setUsuario(
-              usuarioAtualizado
-            );
-
-            // =================================================
-            // ATUALIZAR STORAGE
-            // =================================================
-
-            await AsyncStorage.setItem(
-              "usuario",
-              JSON.stringify(
-                usuarioAtualizado
-              )
-            );
-
-            console.log(
-              "💰 Crédito atualizado no PWA:",
-              usuarioAtualizado.credito
-            );
-
-          } else {
-
-            console.log(
-              "Erro ao atualizar usuário no PWA:",
-              usuarioRes.status
-            );
-
-          }
-
-          // =================================================
-          // 2. ATUALIZAR ALUGUÉIS
-          // =================================================
-
-          await carregarAlugueisAtivos(
-            tokenAtual
-          );
-
-          // =================================================
-          // 3. ATUALIZAR LIVROS
-          // =================================================
-
-          await carregarLivros();
-
-          console.log(
-            "✅ PWA atualizado com sucesso!"
-          );
-
-        } catch (erro) {
-
-          console.log(
-            "❌ Erro ao atualizar PWA:",
-            erro
-          );
-
-        }
-
+        console.log(
+          "❌ Erro ao atualizar PWA:",
+          erro
+        );
       }
-
-      atualizar();
-
     }
 
-    // =====================================================
-    // ADICIONAR EVENTO
-    // =====================================================
+    // ================================================
+    // VISIBILITYCHANGE
+    // ================================================
+
+    function quandoFicarVisivel() {
+
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+
+        atualizarPWA();
+      }
+    }
+
+    // ================================================
+    // FOCUS
+    // ================================================
+
+    function quandoGanharFoco() {
+
+      atualizarPWA();
+    }
+
+    // ================================================
+    // PAGESHOW
+    // ================================================
+
+    function quandoMostrarPagina() {
+
+      atualizarPWA();
+    }
+
+    // ================================================
+    // EVENTOS
+    // ================================================
 
     document.addEventListener(
       "visibilitychange",
-      atualizarQuandoVoltar
+      quandoFicarVisivel
     );
 
-    // =====================================================
-    // REMOVER EVENTO
-    // =====================================================
+    window.addEventListener(
+      "focus",
+      quandoGanharFoco
+    );
+
+    window.addEventListener(
+      "pageshow",
+      quandoMostrarPagina
+    );
+
+    // ================================================
+    // LIMPAR EVENTOS
+    // ================================================
 
     return () => {
 
       document.removeEventListener(
         "visibilitychange",
-        atualizarQuandoVoltar
+        quandoFicarVisivel
       );
 
+      window.removeEventListener(
+        "focus",
+        quandoGanharFoco
+      );
+
+      window.removeEventListener(
+        "pageshow",
+        quandoMostrarPagina
+      );
     };
 
-  }, [token, usuario?.id]);
+  }, [
+    token,
+    usuario?.id,
+    sincronizarDados,
+  ]);
 
-  // =====================================================
+  // ===================================================
   // FILTRO DE LIVROS
-  // =====================================================
+  // ===================================================
 
   const livrosFiltrados =
     livros.filter(
-      (l) => {
+      (livro) => {
 
         if (
           !termoPesquisado.trim()
         ) {
 
           return true;
-
         }
 
         const termo =
           termoPesquisado.toLowerCase();
 
         return (
-          l.nome
+          livro.nome
             .toLowerCase()
             .includes(
               termo
             ) ||
 
-          l.genero
+          livro.genero
             .toLowerCase()
             .includes(
               termo
             )
         );
-
       }
     );
 
-  // =====================================================
+  // ===================================================
   // PESQUISAR
-  // =====================================================
+  // ===================================================
 
   function pesquisar() {
 
     setTermoPesquisado(
       busca
     );
-
   }
 
-  // =====================================================
+  // ===================================================
   // CÁLCULO DO ALUGUEL
-  // =====================================================
+  // ===================================================
 
   const meses =
     parseInt(
@@ -1086,15 +1256,11 @@ export default function Inicio() {
     totalAluguel >
     creditoAtual;
 
-  // =====================================================
+  // ===================================================
   // CONFIRMAR ALUGUEL
-  // =====================================================
+  // ===================================================
 
   async function confirmarAluguel() {
-
-    // =================================================
-    // VALIDAÇÃO
-    // =================================================
 
     if (
       !livroSelecionado ||
@@ -1104,19 +1270,15 @@ export default function Inicio() {
     ) {
 
       return;
-
     }
 
-    // =================================================
-    // TOKEN
-    // =================================================
-
-    if (!token) {
+    if (
+      !token
+    ) {
 
       await handleUnauthorized();
 
       return;
-
     }
 
     setCarregando(
@@ -1125,16 +1287,18 @@ export default function Inicio() {
 
     try {
 
-      // =================================================
-      // ENVIAR ALUGUEL
-      // =================================================
+      console.log(
+        "📚 Realizando aluguel..."
+      );
 
       const res =
         await fetch(
           `${BASE}/alugueis`,
           {
             method: "POST",
-            cache: "no-store",
+
+            cache:
+              "no-store",
 
             headers: {
               "Content-Type":
@@ -1142,6 +1306,9 @@ export default function Inicio() {
 
               Authorization:
                 `Bearer ${token}`,
+
+              "Cache-Control":
+                "no-cache",
             },
 
             body:
@@ -1154,9 +1321,9 @@ export default function Inicio() {
           }
         );
 
-      // =================================================
+      // =============================================
       // TOKEN INVÁLIDO
-      // =================================================
+      // =============================================
 
       if (
         res.status === 401 ||
@@ -1170,21 +1337,22 @@ export default function Inicio() {
         await handleUnauthorized();
 
         return;
-
       }
 
-      // =================================================
+      // =============================================
       // RESPOSTA
-      // =================================================
+      // =============================================
 
       const data =
         await res.json();
 
-      // =================================================
+      // =============================================
       // ERRO
-      // =================================================
+      // =============================================
 
-      if (!res.ok) {
+      if (
+        !res.ok
+      ) {
 
         Alert.alert(
           "Erro",
@@ -1194,44 +1362,10 @@ export default function Inicio() {
         );
 
         return;
-
       }
 
-      // =================================================
-      // ATUALIZAR CRÉDITO
-      // =================================================
-
-      setUsuario(
-        (prev) => {
-
-          const atualizado =
-            prev
-              ? {
-                  ...prev,
-
-                  credito:
-                    Number(
-                      data.novo_credito
-                    ),
-                }
-              : prev;
-
-          if (
-            atualizado
-          ) {
-
-            AsyncStorage.setItem(
-              "usuario",
-              JSON.stringify(
-                atualizado
-              )
-            );
-
-          }
-
-          return atualizado;
-
-        }
+      console.log(
+        "✅ Aluguel realizado"
       );
 
       console.log(
@@ -1239,23 +1373,66 @@ export default function Inicio() {
         data.novo_credito
       );
 
-      // =================================================
-      // ATUALIZAR ALUGUÉIS
-      // =================================================
+      // =============================================
+      // ATUALIZAR CRÉDITO IMEDIATAMENTE
+      // =============================================
 
-      await carregarAlugueisAtivos(
-        token
+      setUsuario(
+        (usuarioAnterior) => {
+
+          if (
+            !usuarioAnterior
+          ) {
+
+            return usuarioAnterior;
+          }
+
+          const atualizado: Usuario =
+            {
+              ...usuarioAnterior,
+
+              credito:
+                Number(
+                  data.novo_credito
+                ),
+            };
+
+          AsyncStorage.setItem(
+            "usuario",
+            JSON.stringify(
+              atualizado
+            )
+          );
+
+          return atualizado;
+        }
       );
 
-      // =================================================
-      // ATUALIZAR LIVROS
-      // =================================================
+      // =============================================
+      // BUSCAR DADOS NOVAMENTE NO BANCO
+      // =============================================
 
-      await carregarLivros();
+      if (
+        token
+      ) {
 
-      // =================================================
-      // LIMPAR MODAL
-      // =================================================
+        const usuarioAtual =
+          usuario;
+
+        if (
+          usuarioAtual
+        ) {
+
+          await sincronizarDados(
+            token,
+            usuarioAtual
+          );
+        }
+      }
+
+      // =============================================
+      // FECHAR MODAL
+      // =============================================
 
       setLivroSelecionado(
         null
@@ -1265,9 +1442,9 @@ export default function Inicio() {
         ""
       );
 
-      // =================================================
+      // =============================================
       // MENSAGEM
-      // =================================================
+      // =============================================
 
       Alert.alert(
         "Sucesso!",
@@ -1278,11 +1455,11 @@ export default function Inicio() {
         }!`
       );
 
-    } catch (err) {
+    } catch (erro) {
 
       console.log(
-        "Erro ao realizar aluguel:",
-        err
+        "❌ Erro ao realizar aluguel:",
+        erro
       );
 
       Alert.alert(
@@ -1295,14 +1472,12 @@ export default function Inicio() {
       setCarregando(
         false
       );
-
     }
-
   }
 
-  // =====================================================
+  // ===================================================
   // INTERFACE
-  // =====================================================
+  // ===================================================
 
   return (
 
@@ -1427,7 +1602,8 @@ export default function Inicio() {
             justifyContent:
               "center",
 
-            height: 80,
+            height:
+              80,
           }}
         >
 
@@ -1438,14 +1614,17 @@ export default function Inicio() {
                   ? "white"
                   : "black",
 
-              fontSize: 20,
+              fontSize:
+                20,
 
               position:
                 "absolute",
 
-              marginBottom: 4,
+              marginBottom:
+                4,
 
-              right: 10,
+              right:
+                10,
             }}
           >
 
@@ -1454,17 +1633,22 @@ export default function Inicio() {
             {Number(
               usuario?.credito ??
                 0
-            ).toFixed(2)}
+            ).toFixed(
+              2
+            )}
 
           </Text>
 
           <TouchableOpacity
             style={{
-              padding: 10,
+              padding:
+                10,
 
-              width: 60,
+              width:
+                60,
 
-              left: 15,
+              left:
+                15,
             }}
 
             onPress={() =>
@@ -1505,7 +1689,8 @@ export default function Inicio() {
           }
 
           contentContainerStyle={{
-            padding: 20,
+            padding:
+              20,
 
             alignItems:
               "center",
@@ -1524,7 +1709,8 @@ export default function Inicio() {
 
             <View
               style={{
-                marginTop: 60,
+                marginTop:
+                  60,
 
                 alignItems:
                   "center",
@@ -1538,7 +1724,8 @@ export default function Inicio() {
                       ? "#ccc"
                       : "#666",
 
-                  fontSize: 16,
+                  fontSize:
+                    16,
                 }}
               >
 
@@ -1562,14 +1749,17 @@ export default function Inicio() {
                 }}
 
                 style={{
-                  marginTop: 16,
+                  marginTop:
+                    16,
 
-                  padding: 10,
+                  padding:
+                    10,
 
                   backgroundColor:
                     "#fc5603",
 
-                  borderRadius: 8,
+                  borderRadius:
+                    8,
                 }}
               >
 
@@ -1640,7 +1830,8 @@ export default function Inicio() {
                         ? 280
                         : 550,
 
-                    height: 50,
+                    height:
+                      50,
 
                     textAlign:
                       "center",
@@ -1676,9 +1867,11 @@ export default function Inicio() {
                   }
 
                   style={{
-                    width: 50,
+                    width:
+                      50,
 
-                    height: 50,
+                    height:
+                      50,
 
                     backgroundColor:
                       "white",
@@ -1722,7 +1915,8 @@ export default function Inicio() {
                     borderLeftWidth:
                       0,
 
-                    right: 5,
+                    right:
+                      5,
                   }}
                 >
 
@@ -1732,8 +1926,11 @@ export default function Inicio() {
                     }
 
                     style={{
-                      width: 30,
-                      height: 30,
+                      width:
+                        30,
+
+                      height:
+                        30,
                     }}
                   />
 
@@ -1758,9 +1955,11 @@ export default function Inicio() {
 
               <View
                 style={{
-                  padding: 15,
+                  padding:
+                    15,
 
-                  margin: 20,
+                  margin:
+                    20,
 
                   width:
                     Mobile
@@ -1863,7 +2062,9 @@ export default function Inicio() {
 
                   {Number(
                     item.valor
-                  ).toFixed(2)}{" "}
+                  ).toFixed(
+                    2
+                  )}{" "}
 
                   / Mês
 
@@ -1871,13 +2072,17 @@ export default function Inicio() {
 
                 <TouchableOpacity
                   style={{
-                    padding: 10,
+                    padding:
+                      10,
 
-                    width: "90%",
+                    width:
+                      "90%",
 
-                    borderRadius: 20,
+                    borderRadius:
+                      20,
 
-                    margin: 10,
+                    margin:
+                      10,
 
                     backgroundColor:
                       jaAlugado
@@ -1910,7 +2115,8 @@ export default function Inicio() {
                       fontWeight:
                         "bold",
 
-                      fontSize: 20,
+                      fontSize:
+                        20,
 
                       textAlign:
                         "center",
@@ -1928,9 +2134,7 @@ export default function Inicio() {
               </View>
 
             );
-
           }}
-
         />
 
         {/* =================================================
@@ -1971,7 +2175,8 @@ export default function Inicio() {
                   fontWeight:
                     "bold",
 
-                  fontSize: 15,
+                  fontSize:
+                    15,
 
                   marginBottom:
                     10,
@@ -1979,7 +2184,8 @@ export default function Inicio() {
                   textAlign:
                     "center",
 
-                  padding: 20,
+                  padding:
+                    20,
                 }}
               >
 
@@ -2018,12 +2224,13 @@ export default function Inicio() {
                       4
                     )
                   );
-
                 }}
 
                 keyboardType="numeric"
 
-                maxLength={4}
+                maxLength={
+                  4
+                }
 
                 style={{
                   borderWidth:
@@ -2046,9 +2253,9 @@ export default function Inicio() {
                 }}
               />
 
-              {/* =================================================
+              {/* ==========================================
                   TOTAL
-              ================================================= */}
+              ========================================== */}
 
               {inserir_valor !==
                 "" &&
@@ -2076,7 +2283,9 @@ export default function Inicio() {
 
                     {Number(
                       livroSelecionado.valor
-                    ).toFixed(2)}{" "}
+                    ).toFixed(
+                      2
+                    )}{" "}
 
                     ={" "}
 
@@ -2104,9 +2313,9 @@ export default function Inicio() {
 
                 )}
 
-              {/* =================================================
+              {/* ==========================================
                   SALDO INSUFICIENTE
-              ================================================= */}
+              ========================================== */}
 
               {saldoInsuficiente &&
                 inserir_valor !==
@@ -2145,9 +2354,9 @@ export default function Inicio() {
 
                 )}
 
-              {/* =================================================
+              {/* ==========================================
                   SALDO APÓS ALUGUEL
-              ================================================= */}
+              ========================================== */}
 
               {!saldoInsuficiente &&
                 inserir_valor !==
@@ -2184,9 +2393,9 @@ export default function Inicio() {
 
                 )}
 
-              {/* =================================================
+              {/* ==========================================
                   CONFIRMAR
-              ================================================= */}
+              ========================================== */}
 
               <TouchableOpacity
                 style={[
@@ -2241,9 +2450,9 @@ export default function Inicio() {
 
               </TouchableOpacity>
 
-              {/* =================================================
+              {/* ==========================================
                   FECHAR
-              ================================================= */}
+              ========================================== */}
 
               <TouchableOpacity
                 onPress={() =>
@@ -2256,9 +2465,11 @@ export default function Inicio() {
                   position:
                     "absolute",
 
-                  top: 15,
+                  top:
+                    15,
 
-                  right: 10,
+                  right:
+                    10,
                 }}
               >
 
@@ -2268,8 +2479,11 @@ export default function Inicio() {
                   }
 
                   style={{
-                    width: 20,
-                    height: 20,
+                    width:
+                      20,
+
+                    height:
+                      20,
                   }}
                 />
 
@@ -2282,7 +2496,7 @@ export default function Inicio() {
         </Modal>
 
         {/* =================================================
-            MENU MODAL
+            MENU
         ================================================= */}
 
         <Modal
@@ -2303,7 +2517,8 @@ export default function Inicio() {
 
           <View
             style={{
-              flex: 1,
+              flex:
+                1,
 
               backgroundColor:
                 "rgba(0,0,0,0.5)",
@@ -2323,14 +2538,17 @@ export default function Inicio() {
                 height:
                   "100%",
 
-                padding: 20,
+                padding:
+                  20,
 
-                paddingTop: 60,
+                paddingTop:
+                  60,
 
                 alignItems:
                   "center",
 
-                top: 100,
+                top:
+                  100,
               }}
             >
 
@@ -2356,9 +2574,9 @@ export default function Inicio() {
 
               </Text>
 
-              {/* =================================================
+              {/* ==========================================
                   CONFIGURAÇÕES
-              ================================================= */}
+              ========================================== */}
 
               <TouchableOpacity
                 style={
@@ -2382,9 +2600,9 @@ export default function Inicio() {
 
               </TouchableOpacity>
 
-              {/* =================================================
+              {/* ==========================================
                   MEUS LIVROS
-              ================================================= */}
+              ========================================== */}
 
               <TouchableOpacity
                 style={
@@ -2399,7 +2617,6 @@ export default function Inicio() {
                   ) {
 
                     return;
-
                   }
 
                   setMenuVisible(
@@ -2436,9 +2653,9 @@ export default function Inicio() {
 
               </TouchableOpacity>
 
-              {/* =================================================
-                  INSTALAR APP
-              ================================================= */}
+              {/* ==========================================
+                  INSTALAR PWA
+              ========================================== */}
 
               {isInstallable && (
 
@@ -2476,9 +2693,9 @@ export default function Inicio() {
 
               )}
 
-              {/* =================================================
-                  FECHAR MENU
-              ================================================= */}
+              {/* ==========================================
+                  FECHAR
+              ========================================== */}
 
               <TouchableOpacity
                 onPress={() =>
@@ -2488,14 +2705,17 @@ export default function Inicio() {
                 }
 
                 style={{
-                  padding: 10,
+                  padding:
+                    10,
 
                   position:
                     "absolute",
 
-                  top: 10,
+                  top:
+                    10,
 
-                  right: 10,
+                  right:
+                    10,
                 }}
               >
 
@@ -2505,8 +2725,11 @@ export default function Inicio() {
                   }
 
                   style={{
-                    width: 30,
-                    height: 30,
+                    width:
+                      30,
+
+                    height:
+                      30,
                   }}
                 />
 
@@ -2521,7 +2744,6 @@ export default function Inicio() {
       </View>
 
     </KeyboardAvoidingView>
-
   );
 }
 
@@ -2529,104 +2751,117 @@ export default function Inicio() {
 // ESTILOS
 // =====================================================
 
-const styles = StyleSheet.create({
+const styles =
+  StyleSheet.create({
 
-  navbar: {
-    width: "100%",
+    navbar: {
+      width:
+        "100%",
 
-    height: 100,
+      height:
+        100,
 
-    backgroundColor:
-      "#ad000e",
+      backgroundColor:
+        "#ad000e",
 
-    flexDirection:
-      "row",
+      flexDirection:
+        "row",
 
-    justifyContent:
-      "space-between",
+      justifyContent:
+        "space-between",
 
-    alignItems:
-      "center",
+      alignItems:
+        "center",
 
-    paddingHorizontal:
-      20,
-  },
+      paddingHorizontal:
+        20,
+    },
 
-  icon: {
-    width: 40,
+    icon: {
+      width:
+        40,
 
-    height: 40,
+      height:
+        40,
 
-    resizeMode:
-      "contain",
-  },
+      resizeMode:
+        "contain",
+    },
 
-  modal: {
-    flex: 1,
+    modal: {
+      flex:
+        1,
 
-    backgroundColor:
-      "#000000aa",
+      backgroundColor:
+        "#000000aa",
 
-    justifyContent:
-      "center",
+      justifyContent:
+        "center",
 
-    alignItems:
-      "center",
-  },
+      alignItems:
+        "center",
+    },
 
-  modalBox: {
-    width: "80%",
+    modalBox: {
+      width:
+        "80%",
 
-    backgroundColor:
-      "white",
+      backgroundColor:
+        "white",
 
-    padding: 20,
+      padding:
+        20,
 
-    borderRadius:
-      10,
-  },
+      borderRadius:
+        10,
+    },
 
-  btnSalvar: {
-    backgroundColor:
-      "#fc5603",
+    btnSalvar: {
+      backgroundColor:
+        "#fc5603",
 
-    padding: 12,
+      padding:
+        12,
 
-    alignItems:
-      "center",
+      alignItems:
+        "center",
 
-    borderRadius:
-      8,
+      borderRadius:
+        8,
 
-    marginTop: 8,
-  },
+      marginTop:
+        8,
+    },
 
-  capa: {
-    height: 300,
+    capa: {
+      height:
+        300,
 
-    borderRadius:
-      8,
+      borderRadius:
+        8,
 
-    marginBottom:
-      10,
+      marginBottom:
+        10,
 
-    resizeMode:
-      "cover",
-  },
+      resizeMode:
+        "cover",
+    },
 
-  menuBtn: {
-    width: "100%",
+    menuBtn: {
+      width:
+        "100%",
 
-    padding: 12,
+      padding:
+        12,
 
-    backgroundColor:
-      "#ad000e",
+      backgroundColor:
+        "#ad000e",
 
-    borderRadius:
-      8,
+      borderRadius:
+        8,
 
-    marginBottom:
-      16,
-  },
+      marginBottom:
+        16,
+    },
 
-});
+  });
