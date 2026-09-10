@@ -57,6 +57,7 @@ interface Livro {
 
 type RootStackParamList = {
   Login: undefined;
+
   Cadastro: undefined;
 
   Inicio: {
@@ -77,15 +78,21 @@ type InicioRouteProp =
   RouteProp<RootStackParamList, "Inicio">;
 
 export default function Inicio() {
-  const { width } = useWindowDimensions();
+  const { width } =
+    useWindowDimensions();
 
-  const Mobile = width < 600;
+  const Mobile =
+    width < 600;
 
   const navigation =
     useNavigation<NavigationProps>();
 
   const route =
     useRoute<InicioRouteProp>();
+
+  // =====================================================
+  // ESTADOS
+  // =====================================================
 
   const [usuario, setUsuario] =
     useState<Usuario | undefined>(
@@ -116,7 +123,9 @@ export default function Inicio() {
     useState(false);
 
   const [livrosAlugadosIds, setLivrosAlugadosIds] =
-    useState<Set<number>>(new Set());
+    useState<Set<number>>(
+      new Set()
+    );
 
   const [livroSelecionado, setLivroSelecionado] =
     useState<Livro | null>(null);
@@ -137,10 +146,17 @@ export default function Inicio() {
   // =====================================================
 
   async function logout() {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("usuario");
+    await AsyncStorage.removeItem(
+      "token"
+    );
 
-    navigation.navigate("Login");
+    await AsyncStorage.removeItem(
+      "usuario"
+    );
+
+    navigation.navigate(
+      "Login"
+    );
   }
 
   // =====================================================
@@ -148,8 +164,13 @@ export default function Inicio() {
   // =====================================================
 
   async function handleUnauthorized() {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("usuario");
+    await AsyncStorage.removeItem(
+      "token"
+    );
+
+    await AsyncStorage.removeItem(
+      "usuario"
+    );
 
     Alert.alert(
       "Sessão expirada",
@@ -158,7 +179,9 @@ export default function Inicio() {
         {
           text: "OK",
           onPress: () =>
-            navigation.navigate("Login"),
+            navigation.navigate(
+              "Login"
+            ),
         },
       ]
     );
@@ -191,9 +214,9 @@ export default function Inicio() {
           }
         );
 
-      // -------------------------------------------------
+      // =================================================
       // TOKEN INVÁLIDO
-      // -------------------------------------------------
+      // =================================================
 
       if (
         res.status === 401 ||
@@ -203,9 +226,9 @@ export default function Inicio() {
         return;
       }
 
-      // -------------------------------------------------
-      // ERRO NA API
-      // -------------------------------------------------
+      // =================================================
+      // ERRO
+      // =================================================
 
       if (!res.ok) {
         console.log(
@@ -216,20 +239,22 @@ export default function Inicio() {
         return;
       }
 
-      // -------------------------------------------------
+      // =================================================
       // DADOS
-      // -------------------------------------------------
+      // =================================================
 
       const data =
         await res.json();
 
-      if (!Array.isArray(data)) {
+      if (
+        !Array.isArray(data)
+      ) {
         return;
       }
 
-      // -------------------------------------------------
+      // =================================================
       // FILTRAR ALUGUÉIS ATIVOS
-      // -------------------------------------------------
+      // =================================================
 
       const hoje =
         new Date();
@@ -262,297 +287,11 @@ export default function Inicio() {
 
     } catch (err) {
       console.log(
-        "Erro alugueis:",
+        "❌ Erro alugueis:",
         err
       );
     }
   }
-
-  // =====================================================
-  // RECUPERAR SESSÃO
-  // =====================================================
-
-  useEffect(() => {
-    async function recuperarSessao() {
-      try {
-        let tokenAtual =
-          token;
-
-        let usuarioAtual =
-          usuario;
-
-        // -------------------------------------------------
-        // RECUPERAR DADOS DO DISPOSITIVO
-        // -------------------------------------------------
-
-        const tokenSalvo =
-          await AsyncStorage.getItem(
-            "token"
-          );
-
-        const usuarioSalvo =
-          await AsyncStorage.getItem(
-            "usuario"
-          );
-
-        // =================================================
-        // 1. RECUPERAR TOKEN
-        // =================================================
-
-        if (!tokenAtual) {
-          if (!tokenSalvo) {
-            navigation.navigate(
-              "Login"
-            );
-
-            return;
-          }
-
-          tokenAtual =
-            tokenSalvo;
-
-          setToken(
-            tokenSalvo
-          );
-        }
-
-        // =================================================
-        // 2. RECUPERAR USUÁRIO
-        // =================================================
-
-        if (
-          !usuarioAtual &&
-          usuarioSalvo
-        ) {
-          try {
-            usuarioAtual =
-              JSON.parse(
-                usuarioSalvo
-              );
-
-            setUsuario(
-              usuarioAtual
-            );
-
-          } catch (erro) {
-            console.log(
-              "Erro ao ler usuário salvo:",
-              erro
-            );
-          }
-        }
-
-        // =================================================
-        // VERIFICAR SESSÃO
-        // =================================================
-
-        if (
-          !tokenAtual ||
-          !usuarioAtual?.id
-        ) {
-          navigation.navigate(
-            "Login"
-          );
-
-          return;
-        }
-
-        console.log(
-          "TOKEN:",
-          tokenAtual
-        );
-
-        console.log(
-          "ID DO USUÁRIO:",
-          usuarioAtual.id
-        );
-
-        // =================================================
-        // 3. BUSCAR USUÁRIO ATUALIZADO
-        // =================================================
-
-        const usuarioRes =
-          await fetch(
-            `${BASE}/usuarios/${usuarioAtual.id}`,
-            {
-              method: "GET",
-              cache: "no-store",
-
-              headers: {
-                Authorization:
-                  `Bearer ${tokenAtual}`,
-              },
-            }
-          );
-
-        // =================================================
-        // TOKEN INVÁLIDO
-        // =================================================
-
-        if (
-          usuarioRes.status === 401 ||
-          usuarioRes.status === 403
-        ) {
-          await handleUnauthorized();
-
-          return;
-        }
-
-        // =================================================
-        // USUÁRIO ENCONTRADO
-        // =================================================
-
-        if (usuarioRes.ok) {
-          const usuarioServidor =
-            await usuarioRes.json();
-
-          console.log(
-            "USUÁRIO DO BANCO:",
-            usuarioServidor
-          );
-
-          console.log(
-            "CRÉDITO ATUAL:",
-            usuarioServidor.credito
-          );
-
-          const usuarioAtualizado = {
-            ...usuarioAtual,
-
-            id: Number(
-              usuarioServidor.id
-            ),
-
-            nome:
-              usuarioServidor.nome,
-
-            email:
-              usuarioServidor.email,
-
-            credito:
-              Number(
-                usuarioServidor.credito
-              ),
-
-            tipo:
-              usuarioAtual.tipo ??
-              "normal",
-          };
-
-          // Atualizar tela
-          setUsuario(
-            usuarioAtualizado
-          );
-
-          // Atualizar armazenamento
-          await AsyncStorage.setItem(
-            "usuario",
-            JSON.stringify(
-              usuarioAtualizado
-            )
-          );
-
-          // Atualizar variável local
-          usuarioAtual =
-            usuarioAtualizado;
-
-          console.log(
-            "💰 CRÉDITO SINCRONIZADO:",
-            usuarioAtualizado.credito
-          );
-
-        } else {
-          console.log(
-            "Erro ao buscar usuário:",
-            usuarioRes.status
-          );
-        }
-
-        // =================================================
-        // 4. BUSCAR ALUGUÉIS
-        // =================================================
-
-        const res =
-          await fetch(
-            `${BASE}/alugueis`,
-            {
-              method: "GET",
-              cache: "no-store",
-
-              headers: {
-                Authorization:
-                  `Bearer ${tokenAtual}`,
-              },
-            }
-          );
-
-        // =================================================
-        // TOKEN INVÁLIDO
-        // =================================================
-
-        if (
-          res.status === 401 ||
-          res.status === 403
-        ) {
-          await handleUnauthorized();
-
-          return;
-        }
-
-        // =================================================
-        // ALUGUÉIS ENCONTRADOS
-        // =================================================
-
-        if (res.ok) {
-          const data =
-            await res.json();
-
-          if (
-            Array.isArray(data)
-          ) {
-            const hoje =
-              new Date();
-
-            const idsAtivos =
-              new Set<number>(
-                data
-                  .filter(
-                    (a: any) =>
-                      new Date(
-                        a.data_fim
-                      ) >= hoje
-                  )
-                  .map(
-                    (a: any) =>
-                      Number(
-                        a.livro_id
-                      )
-                  )
-              );
-
-            setLivrosAlugadosIds(
-              idsAtivos
-            );
-          }
-
-        } else {
-          console.log(
-            "Erro ao buscar aluguéis:",
-            res.status
-          );
-        }
-
-      } catch (err) {
-        console.log(
-          "Erro ao recuperar sessão:",
-          err
-        );
-      }
-    }
-
-    recuperarSessao();
-
-  }, []);
 
   // =====================================================
   // CARREGAR LIVROS
@@ -595,18 +334,258 @@ export default function Inicio() {
 
     } catch (err) {
       console.log(
-        "Erro ao carregar livros:",
+        "❌ Erro ao carregar livros:",
         err
       );
     }
   }
 
   // =====================================================
-  // CARREGAR LIVROS AO ABRIR A TELA
+  // RECUPERAR SESSÃO
   // =====================================================
 
   useEffect(() => {
+
+    async function recuperarSessao() {
+
+      try {
+
+        let tokenAtual =
+          token;
+
+        let usuarioAtual =
+          usuario;
+
+        // =================================================
+        // RECUPERAR DADOS SALVOS
+        // =================================================
+
+        const tokenSalvo =
+          await AsyncStorage.getItem(
+            "token"
+          );
+
+        const usuarioSalvo =
+          await AsyncStorage.getItem(
+            "usuario"
+          );
+
+        // =================================================
+        // 1. TOKEN
+        // =================================================
+
+        if (!tokenAtual) {
+
+          if (!tokenSalvo) {
+
+            navigation.navigate(
+              "Login"
+            );
+
+            return;
+          }
+
+          tokenAtual =
+            tokenSalvo;
+
+          setToken(
+            tokenSalvo
+          );
+        }
+
+        // =================================================
+        // 2. USUÁRIO
+        // =================================================
+
+        if (
+          !usuarioAtual &&
+          usuarioSalvo
+        ) {
+
+          try {
+
+            usuarioAtual =
+              JSON.parse(
+                usuarioSalvo
+              );
+
+            setUsuario(
+              usuarioAtual
+            );
+
+          } catch (erro) {
+
+            console.log(
+              "Erro ao ler usuário salvo:",
+              erro
+            );
+
+          }
+        }
+
+        // =================================================
+        // VERIFICAR SESSÃO
+        // =================================================
+
+        if (
+          !tokenAtual ||
+          !usuarioAtual?.id
+        ) {
+
+          navigation.navigate(
+            "Login"
+          );
+
+          return;
+        }
+
+        console.log(
+          "TOKEN:",
+          tokenAtual
+        );
+
+        console.log(
+          "ID DO USUÁRIO:",
+          usuarioAtual.id
+        );
+
+        // =================================================
+        // 3. BUSCAR USUÁRIO NO BANCO
+        // =================================================
+
+        const usuarioRes =
+          await fetch(
+            `${BASE}/usuarios/${usuarioAtual.id}`,
+            {
+              method: "GET",
+              cache: "no-store",
+
+              headers: {
+                Authorization:
+                  `Bearer ${tokenAtual}`,
+              },
+            }
+          );
+
+        // =================================================
+        // TOKEN INVÁLIDO
+        // =================================================
+
+        if (
+          usuarioRes.status === 401 ||
+          usuarioRes.status === 403
+        ) {
+
+          await handleUnauthorized();
+
+          return;
+        }
+
+        // =================================================
+        // USUÁRIO ENCONTRADO
+        // =================================================
+
+        if (
+          usuarioRes.ok
+        ) {
+
+          const usuarioServidor =
+            await usuarioRes.json();
+
+          console.log(
+            "USUÁRIO DO BANCO:",
+            usuarioServidor
+          );
+
+          console.log(
+            "💰 CRÉDITO ATUAL:",
+            usuarioServidor.credito
+          );
+
+          const usuarioAtualizado: Usuario =
+            {
+              ...usuarioAtual,
+
+              id:
+                Number(
+                  usuarioServidor.id
+                ),
+
+              nome:
+                usuarioServidor.nome,
+
+              email:
+                usuarioServidor.email,
+
+              credito:
+                Number(
+                  usuarioServidor.credito
+                ),
+
+              tipo:
+                usuarioAtual.tipo ??
+                "normal",
+            };
+
+          setUsuario(
+            usuarioAtualizado
+          );
+
+          await AsyncStorage.setItem(
+            "usuario",
+            JSON.stringify(
+              usuarioAtualizado
+            )
+          );
+
+          usuarioAtual =
+            usuarioAtualizado;
+
+          console.log(
+            "💰 CRÉDITO SINCRONIZADO:",
+            usuarioAtualizado.credito
+          );
+
+        } else {
+
+          console.log(
+            "Erro ao buscar usuário:",
+            usuarioRes.status
+          );
+
+        }
+
+        // =================================================
+        // 4. BUSCAR ALUGUÉIS
+        // =================================================
+
+        await carregarAlugueisAtivos(
+          tokenAtual
+        );
+
+      } catch (err) {
+
+        console.log(
+          "❌ Erro ao recuperar sessão:",
+          err
+        );
+
+      }
+
+    }
+
+    recuperarSessao();
+
+  }, []);
+
+  // =====================================================
+  // CARREGAR LIVROS AO ABRIR
+  // =====================================================
+
+  useEffect(() => {
+
     carregarLivros();
+
   }, []);
 
   // =====================================================
@@ -614,23 +593,24 @@ export default function Inicio() {
   // =====================================================
 
   useEffect(() => {
+
     if (token) {
+
       carregarAlugueisAtivos(
         token
       );
+
     }
+
   }, [token]);
 
   // =====================================================
-  // ATUALIZAR AUTOMATICAMENTE AO VOLTAR PARA A TELA
+  // ATUALIZAR AO VOLTAR PARA A TELA
   // =====================================================
 
   useFocusEffect(
-    useCallback(() => {
 
-      // -------------------------------------------------
-      // Se não tiver sessão, não faz nada
-      // -------------------------------------------------
+    useCallback(() => {
 
       if (
         !token ||
@@ -639,28 +619,29 @@ export default function Inicio() {
         return;
       }
 
-      // -------------------------------------------------
-      // IMPORTANTE:
-      // Criamos variáveis locais para o TypeScript
-      // saber que não são null/undefined.
-      // -------------------------------------------------
-
+      // Guardamos os valores em constantes.
+      // Isso evita o erro do TypeScript.
       const tokenAtual: string =
         token;
 
+      const usuarioAtual: Usuario =
+        usuario;
+
       const usuarioId: number =
         Number(
-          usuario.id
+          usuarioAtual.id
         );
 
       async function atualizarAoVoltar() {
+
         try {
+
           console.log(
             "🔄 Atualizando tela ao voltar..."
           );
 
           // =================================================
-          // 1. ATUALIZAR USUÁRIO E CRÉDITO
+          // 1. ATUALIZAR USUÁRIO
           // =================================================
 
           const usuarioRes =
@@ -677,24 +658,28 @@ export default function Inicio() {
               }
             );
 
-          // -------------------------------------------------
+          // =================================================
           // TOKEN EXPIRADO
-          // -------------------------------------------------
+          // =================================================
 
           if (
             usuarioRes.status === 401 ||
             usuarioRes.status === 403
           ) {
+
             await handleUnauthorized();
 
             return;
           }
 
-          // -------------------------------------------------
-          // USUÁRIO ENCONTRADO
-          // -------------------------------------------------
+          // =================================================
+          // ATUALIZAR CRÉDITO
+          // =================================================
 
-          if (usuarioRes.ok) {
+          if (
+            usuarioRes.ok
+          ) {
+
             const usuarioServidor =
               await usuarioRes.json();
 
@@ -708,70 +693,58 @@ export default function Inicio() {
               usuarioServidor.credito
             );
 
-            // -------------------------------------------------
-            // Atualizar usando o estado anterior
-            // -------------------------------------------------
+            const usuarioAtualizado: Usuario =
+              {
+                ...usuarioAtual,
+
+                id:
+                  Number(
+                    usuarioServidor.id
+                  ),
+
+                nome:
+                  usuarioServidor.nome,
+
+                email:
+                  usuarioServidor.email,
+
+                credito:
+                  Number(
+                    usuarioServidor.credito
+                  ),
+
+                tipo:
+                  usuarioAtual.tipo ??
+                  "normal",
+              };
 
             setUsuario(
-              (usuarioAnterior) => {
+              usuarioAtualizado
+            );
 
-                if (!usuarioAnterior) {
-                  return usuarioAnterior;
-                }
+            await AsyncStorage.setItem(
+              "usuario",
+              JSON.stringify(
+                usuarioAtualizado
+              )
+            );
 
-                const usuarioAtualizado =
-                  {
-                    ...usuarioAnterior,
-
-                    id: Number(
-                      usuarioServidor.id
-                    ),
-
-                    nome:
-                      usuarioServidor.nome,
-
-                    email:
-                      usuarioServidor.email,
-
-                    credito:
-                      Number(
-                        usuarioServidor.credito
-                      ),
-
-                    tipo:
-                      usuarioAnterior.tipo ??
-                      "normal",
-                  };
-
-                // -------------------------------------------------
-                // Atualizar AsyncStorage
-                // -------------------------------------------------
-
-                AsyncStorage.setItem(
-                  "usuario",
-                  JSON.stringify(
-                    usuarioAtualizado
-                  )
-                );
-
-                console.log(
-                  "💰 Crédito atualizado:",
-                  usuarioAtualizado.credito
-                );
-
-                return usuarioAtualizado;
-              }
+            console.log(
+              "💰 Crédito atualizado:",
+              usuarioAtualizado.credito
             );
 
           } else {
+
             console.log(
               "Erro ao atualizar usuário:",
               usuarioRes.status
             );
+
           }
 
           // =================================================
-          // 2. ATUALIZAR LIVROS ALUGADOS
+          // 2. ATUALIZAR ALUGUÉIS
           // =================================================
 
           await carregarAlugueisAtivos(
@@ -779,7 +752,7 @@ export default function Inicio() {
           );
 
           // =================================================
-          // 3. ATUALIZAR LISTA DE LIVROS
+          // 3. ATUALIZAR LIVROS
           // =================================================
 
           await carregarLivros();
@@ -789,17 +762,250 @@ export default function Inicio() {
           );
 
         } catch (erro) {
+
           console.log(
             "❌ Erro ao atualizar tela ao voltar:",
             erro
           );
+
         }
+
       }
 
       atualizarAoVoltar();
 
     }, [token, usuario?.id])
+
   );
+
+  // =====================================================
+  // ATUALIZAR PWA AO VOLTAR A FICAR VISÍVEL
+  // =====================================================
+
+  useEffect(() => {
+
+    // Só funciona no navegador/PWA
+    if (
+      Platform.OS !== "web"
+    ) {
+      return;
+    }
+
+    // Segurança para evitar erro caso
+    // document não esteja disponível.
+    if (
+      typeof document === "undefined"
+    ) {
+      return;
+    }
+
+    function atualizarQuandoVoltar() {
+
+      // =================================================
+      // VERIFICAR VISIBILIDADE
+      // =================================================
+
+      if (
+        document.visibilityState !==
+        "visible"
+      ) {
+        return;
+      }
+
+      // =================================================
+      // VERIFICAR SESSÃO
+      // =================================================
+
+      if (
+        !token ||
+        !usuario?.id
+      ) {
+        return;
+      }
+
+      // Guardamos os valores para o TypeScript
+      // saber que eles existem.
+      const tokenAtual: string =
+        token;
+
+      const usuarioAtual: Usuario =
+        usuario;
+
+      const usuarioId: number =
+        Number(
+          usuarioAtual.id
+        );
+
+      console.log(
+        "🔄 PWA voltou para a tela. Atualizando..."
+      );
+
+      async function atualizar() {
+
+        try {
+
+          // =================================================
+          // 1. ATUALIZAR USUÁRIO
+          // =================================================
+
+          const usuarioRes =
+            await fetch(
+              `${BASE}/usuarios/${usuarioId}`,
+              {
+                method: "GET",
+                cache: "no-store",
+
+                headers: {
+                  Authorization:
+                    `Bearer ${tokenAtual}`,
+                },
+              }
+            );
+
+          // =================================================
+          // TOKEN EXPIRADO
+          // =================================================
+
+          if (
+            usuarioRes.status === 401 ||
+            usuarioRes.status === 403
+          ) {
+
+            await handleUnauthorized();
+
+            return;
+          }
+
+          // =================================================
+          // USUÁRIO ENCONTRADO
+          // =================================================
+
+          if (
+            usuarioRes.ok
+          ) {
+
+            const usuarioServidor =
+              await usuarioRes.json();
+
+            console.log(
+              "👤 Usuário atualizado no PWA:",
+              usuarioServidor
+            );
+
+            const usuarioAtualizado: Usuario =
+              {
+                ...usuarioAtual,
+
+                id:
+                  Number(
+                    usuarioServidor.id
+                  ),
+
+                nome:
+                  usuarioServidor.nome,
+
+                email:
+                  usuarioServidor.email,
+
+                credito:
+                  Number(
+                    usuarioServidor.credito
+                  ),
+
+                tipo:
+                  usuarioAtual.tipo ??
+                  "normal",
+              };
+
+            // =================================================
+            // ATUALIZAR ESTADO
+            // =================================================
+
+            setUsuario(
+              usuarioAtualizado
+            );
+
+            // =================================================
+            // ATUALIZAR STORAGE
+            // =================================================
+
+            await AsyncStorage.setItem(
+              "usuario",
+              JSON.stringify(
+                usuarioAtualizado
+              )
+            );
+
+            console.log(
+              "💰 Crédito atualizado no PWA:",
+              usuarioAtualizado.credito
+            );
+
+          } else {
+
+            console.log(
+              "Erro ao atualizar usuário no PWA:",
+              usuarioRes.status
+            );
+
+          }
+
+          // =================================================
+          // 2. ATUALIZAR ALUGUÉIS
+          // =================================================
+
+          await carregarAlugueisAtivos(
+            tokenAtual
+          );
+
+          // =================================================
+          // 3. ATUALIZAR LIVROS
+          // =================================================
+
+          await carregarLivros();
+
+          console.log(
+            "✅ PWA atualizado com sucesso!"
+          );
+
+        } catch (erro) {
+
+          console.log(
+            "❌ Erro ao atualizar PWA:",
+            erro
+          );
+
+        }
+
+      }
+
+      atualizar();
+
+    }
+
+    // =====================================================
+    // ADICIONAR EVENTO
+    // =====================================================
+
+    document.addEventListener(
+      "visibilitychange",
+      atualizarQuandoVoltar
+    );
+
+    // =====================================================
+    // REMOVER EVENTO
+    // =====================================================
+
+    return () => {
+
+      document.removeEventListener(
+        "visibilitychange",
+        atualizarQuandoVoltar
+      );
+
+    };
+
+  }, [token, usuario?.id]);
 
   // =====================================================
   // FILTRO DE LIVROS
@@ -812,7 +1018,9 @@ export default function Inicio() {
         if (
           !termoPesquisado.trim()
         ) {
+
           return true;
+
         }
 
         const termo =
@@ -821,12 +1029,17 @@ export default function Inicio() {
         return (
           l.nome
             .toLowerCase()
-            .includes(termo) ||
+            .includes(
+              termo
+            ) ||
 
           l.genero
             .toLowerCase()
-            .includes(termo)
+            .includes(
+              termo
+            )
         );
+
       }
     );
 
@@ -835,9 +1048,11 @@ export default function Inicio() {
   // =====================================================
 
   function pesquisar() {
+
     setTermoPesquisado(
       busca
     );
+
   }
 
   // =====================================================
@@ -877,23 +1092,42 @@ export default function Inicio() {
 
   async function confirmarAluguel() {
 
+    // =================================================
+    // VALIDAÇÃO
+    // =================================================
+
     if (
       !livroSelecionado ||
       isNaN(meses) ||
       meses <= 0 ||
       saldoInsuficiente
     ) {
+
       return;
+
     }
+
+    // =================================================
+    // TOKEN
+    // =================================================
 
     if (!token) {
+
       await handleUnauthorized();
+
       return;
+
     }
 
-    setCarregando(true);
+    setCarregando(
+      true
+    );
 
     try {
+
+      // =================================================
+      // ENVIAR ALUGUEL
+      // =================================================
 
       const res =
         await fetch(
@@ -928,6 +1162,7 @@ export default function Inicio() {
         res.status === 401 ||
         res.status === 403
       ) {
+
         setLivroSelecionado(
           null
         );
@@ -935,6 +1170,7 @@ export default function Inicio() {
         await handleUnauthorized();
 
         return;
+
       }
 
       // =================================================
@@ -949,6 +1185,7 @@ export default function Inicio() {
       // =================================================
 
       if (!res.ok) {
+
         Alert.alert(
           "Erro",
           typeof data === "string"
@@ -957,6 +1194,7 @@ export default function Inicio() {
         );
 
         return;
+
       }
 
       // =================================================
@@ -978,16 +1216,21 @@ export default function Inicio() {
                 }
               : prev;
 
-          if (atualizado) {
+          if (
+            atualizado
+          ) {
+
             AsyncStorage.setItem(
               "usuario",
               JSON.stringify(
                 atualizado
               )
             );
+
           }
 
           return atualizado;
+
         }
       );
 
@@ -1003,6 +1246,12 @@ export default function Inicio() {
       await carregarAlugueisAtivos(
         token
       );
+
+      // =================================================
+      // ATUALIZAR LIVROS
+      // =================================================
+
+      await carregarLivros();
 
       // =================================================
       // LIMPAR MODAL
@@ -1046,7 +1295,9 @@ export default function Inicio() {
       setCarregando(
         false
       );
+
     }
+
   }
 
   // =====================================================
@@ -1054,6 +1305,7 @@ export default function Inicio() {
   // =====================================================
 
   return (
+
     <KeyboardAvoidingView
       style={{
         flex: 1,
@@ -1098,6 +1350,7 @@ export default function Inicio() {
               logout
             }
           >
+
             <Image
               source={
                 Logout
@@ -1107,6 +1360,7 @@ export default function Inicio() {
                 styles.icon
               }
             />
+
           </TouchableOpacity>
 
           <Text
@@ -1123,9 +1377,11 @@ export default function Inicio() {
                 "bold",
             }}
           >
+
             Olá,{" "}
             {usuario?.nome ??
               "Usuário"}
+
           </Text>
 
           <TouchableOpacity
@@ -1137,6 +1393,7 @@ export default function Inicio() {
               )
             }
           >
+
             <Image
               source={
                 isDark
@@ -1148,6 +1405,7 @@ export default function Inicio() {
                 styles.icon
               }
             />
+
           </TouchableOpacity>
 
         </SafeAreaView>
@@ -1190,11 +1448,14 @@ export default function Inicio() {
               right: 10,
             }}
           >
+
             Créditos: R${" "}
+
             {Number(
               usuario?.credito ??
                 0
             ).toFixed(2)}
+
           </Text>
 
           <TouchableOpacity
@@ -1260,6 +1521,7 @@ export default function Inicio() {
           keyboardShouldPersistTaps="handled"
 
           ListEmptyComponent={
+
             <View
               style={{
                 marginTop: 60,
@@ -1279,13 +1541,16 @@ export default function Inicio() {
                   fontSize: 16,
                 }}
               >
+
                 Nenhum livro
                 encontrado para
                 "{termoPesquisado}"
+
               </Text>
 
               <TouchableOpacity
                 onPress={() => {
+
                   setBusca(
                     ""
                   );
@@ -1293,6 +1558,7 @@ export default function Inicio() {
                   setTermoPesquisado(
                     ""
                   );
+
                 }}
 
                 style={{
@@ -1316,15 +1582,19 @@ export default function Inicio() {
                       "bold",
                   }}
                 >
+
                   Limpar pesquisa
+
                 </Text>
 
               </TouchableOpacity>
 
             </View>
+
           }
 
           ListHeaderComponent={
+
             <View
               style={{
                 alignItems:
@@ -1472,6 +1742,7 @@ export default function Inicio() {
               </View>
 
             </View>
+
           }
 
           renderItem={({
@@ -1561,7 +1832,9 @@ export default function Inicio() {
                         : "black",
                   }}
                 >
+
                   {item.nome}
+
                 </Text>
 
                 <Text
@@ -1572,7 +1845,9 @@ export default function Inicio() {
                         : "#333",
                   }}
                 >
+
                   {item.genero}
+
                 </Text>
 
                 <Text
@@ -1583,11 +1858,15 @@ export default function Inicio() {
                         : "#333",
                   }}
                 >
+
                   Valor: R${" "}
+
                   {Number(
                     item.valor
                   ).toFixed(2)}{" "}
+
                   / Mês
+
                 </Text>
 
                 <TouchableOpacity
@@ -1611,6 +1890,7 @@ export default function Inicio() {
                   }
 
                   onPress={() => {
+
                     setInserirValor(
                       ""
                     );
@@ -1618,6 +1898,7 @@ export default function Inicio() {
                     setLivroSelecionado(
                       item
                     );
+
                   }}
                 >
 
@@ -1635,16 +1916,21 @@ export default function Inicio() {
                         "center",
                     }}
                   >
+
                     {jaAlugado
                       ? "Já Alugado"
                       : "Alugar"}
+
                   </Text>
 
                 </TouchableOpacity>
 
               </View>
+
             );
+
           }}
+
         />
 
         {/* =================================================
@@ -1696,9 +1982,11 @@ export default function Inicio() {
                   padding: 20,
                 }}
               >
+
                 {
                   livroSelecionado?.nome
                 }
+
               </Text>
 
               <TextInput
@@ -1730,6 +2018,7 @@ export default function Inicio() {
                       4
                     )
                   );
+
                 }}
 
                 keyboardType="numeric"
@@ -1778,11 +2067,13 @@ export default function Inicio() {
                   >
 
                     {meses}{" "}
+
                     {meses === 1
                       ? "mês"
                       : "meses"}{" "}
 
                     × R${" "}
+
                     {Number(
                       livroSelecionado.valor
                     ).toFixed(2)}{" "}
@@ -1800,13 +2091,17 @@ export default function Inicio() {
                             : "#fc5603",
                       }}
                     >
+
                       R${" "}
+
                       {totalAluguel.toFixed(
                         2
                       )}
+
                     </Text>
 
                   </Text>
+
                 )}
 
               {/* =================================================
@@ -1836,13 +2131,18 @@ export default function Inicio() {
                         13,
                     }}
                   >
+
                     Saldo insuficiente.
                     Você possui R${" "}
+
                     {creditoAtual.toFixed(
                       2
                     )}{" "}
+
                     de crédito.
+
                   </Text>
+
                 )}
 
               {/* =================================================
@@ -1869,15 +2169,19 @@ export default function Inicio() {
                         16,
                     }}
                   >
+
                     Saldo após aluguel:
                     R${" "}
+
                     {(
                       creditoAtual -
                       totalAluguel
                     ).toFixed(
                       2
                     )}
+
                   </Text>
+
                 )}
 
               {/* =================================================
@@ -1928,9 +2232,11 @@ export default function Inicio() {
                       "center",
                   }}
                 >
+
                   {carregando
                     ? "Processando..."
                     : "Confirmar Aluguel"}
+
                 </Text>
 
               </TouchableOpacity>
@@ -2045,7 +2351,9 @@ export default function Inicio() {
                       : "black",
                 }}
               >
+
                 Menu
+
               </Text>
 
               {/* =================================================
@@ -2067,7 +2375,9 @@ export default function Inicio() {
                       "center",
                   }}
                 >
+
                   Configurações
+
                 </Text>
 
               </TouchableOpacity>
@@ -2087,7 +2397,9 @@ export default function Inicio() {
                     !usuario ||
                     !token
                   ) {
+
                     return;
+
                   }
 
                   setMenuVisible(
@@ -2117,7 +2429,9 @@ export default function Inicio() {
                       "center",
                   }}
                 >
+
                   Meus Livros
+
                 </Text>
 
               </TouchableOpacity>
@@ -2153,7 +2467,9 @@ export default function Inicio() {
                         "center",
                     }}
                   >
+
                     📲 Instalar App
+
                   </Text>
 
                 </TouchableOpacity>
@@ -2205,6 +2521,7 @@ export default function Inicio() {
       </View>
 
     </KeyboardAvoidingView>
+
   );
 }
 
