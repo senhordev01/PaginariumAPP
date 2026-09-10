@@ -130,51 +130,192 @@ export default function Inicio() {
 
   useEffect(() => {
     async function recuperarSessao() {
-      if (!token) {
+      try {
+        let tokenAtual = token;
+        let usuarioAtual = usuario;
+
+        // Recupera os dados salvos no dispositivo
         const tokenSalvo = await AsyncStorage.getItem("token");
-        console.log("TOKEN SALVO:", tokenSalvo);
         const usuarioSalvo = await AsyncStorage.getItem("usuario");
 
-        if (!tokenSalvo) {
-          navigation.navigate("Login");
-          return;
-        }
+        // =====================================================
+        // 1. RECUPERAR TOKEN
+        // =====================================================
 
-        try {
-          const res = await fetch(`${BASE}/alugueis`, {
-            cache: "no-store",
-            headers: { Authorization: `Bearer ${tokenSalvo}` },
-          });
-
-          if (res.status === 401 || res.status === 403) {
-            await AsyncStorage.removeItem("token");
-            await AsyncStorage.removeItem("usuario");
+        if (!tokenAtual) {
+          if (!tokenSalvo) {
             navigation.navigate("Login");
             return;
           }
 
+          tokenAtual = tokenSalvo;
           setToken(tokenSalvo);
-          if (usuarioSalvo && !usuario) setUsuario(JSON.parse(usuarioSalvo));
-
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data)) {
-              const hoje = new Date();
-              const idsAtivos = new Set<number>(
-                data
-                  .filter((a: any) => new Date(a.data_fim) >= hoje)
-                  .map((a: any) => Number(a.livro_id))
-              );
-              setLivrosAlugadosIds(idsAtivos);
-            }
-          }
-        } catch (err) {
-          console.log("Erro ao validar token:", err);
-          setToken(tokenSalvo);
-          if (usuarioSalvo && !usuario) setUsuario(JSON.parse(usuarioSalvo));
         }
+
+        // =====================================================
+        // 2. RECUPERAR USUÁRIO SALVO
+        // =====================================================
+
+        if (!usuarioAtual && usuarioSalvo) {
+          try {
+            usuarioAtual = JSON.parse(usuarioSalvo);
+            setUsuario(usuarioAtual);
+          } catch (erro) {
+            console.log("Erro ao ler usuário salvo:", erro);
+          }
+        }
+
+        // Se não tiver token ou ID do usuário, volta para o login
+        if (!tokenAtual || !usuarioAtual?.id) {
+          navigation.navigate("Login");
+          return;
+        }
+
+        console.log("TOKEN:", tokenAtual);
+        console.log("ID DO USUÁRIO:", usuarioAtual.id);
+
+        // =====================================================
+        // 3. BUSCAR USUÁRIO ATUALIZADO NO BANCO
+        // =====================================================
+
+        const usuarioRes = await fetch(
+          `${BASE}/usuarios/${usuarioAtual.id}`,
+          {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${tokenAtual}`,
+            },
+          }
+        );
+
+        // Token inválido
+        if (
+          usuarioRes.status === 401 ||
+          usuarioRes.status === 403
+        ) {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("usuario");
+
+          navigation.navigate("Login");
+          return;
+        }
+
+        // Usuário encontrado
+        if (usuarioRes.ok) {
+          const usuarioServidor = await usuarioRes.json();
+
+          console.log(
+            "USUÁRIO DO BANCO:",
+            usuarioServidor
+          );
+
+          console.log(
+            "CRÉDITO ATUAL:",
+            usuarioServidor.credito
+          );
+
+          // Atualiza o usuário com os dados reais do banco
+          const usuarioAtualizado = {
+            ...usuarioAtual,
+
+            id: Number(usuarioServidor.id),
+
+            nome: usuarioServidor.nome,
+
+            email: usuarioServidor.email,
+
+            credito: Number(usuarioServidor.credito),
+
+            // Mantém o tipo que já estava salvo
+            tipo: usuarioAtual.tipo ?? "normal",
+          };
+
+          // Atualiza a tela
+          setUsuario(usuarioAtualizado);
+
+          // Atualiza o usuário salvo no dispositivo
+          await AsyncStorage.setItem(
+            "usuario",
+            JSON.stringify(usuarioAtualizado)
+          );
+
+          // Atualiza a variável local
+          usuarioAtual = usuarioAtualizado;
+
+          console.log(
+            "CRÉDITO SINCRONIZADO:",
+            usuarioAtualizado.credito
+          );
+        } else {
+          console.log(
+            "Erro ao buscar usuário:",
+            usuarioRes.status
+          );
+        }
+
+        // =====================================================
+        // 4. BUSCAR ALUGUÉIS DO USUÁRIO
+        // =====================================================
+
+        const res = await fetch(
+          `${BASE}/alugueis`,
+          {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${tokenAtual}`,
+            },
+          }
+        );
+
+        // Token inválido
+        if (
+          res.status === 401 ||
+          res.status === 403
+        ) {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("usuario");
+
+          navigation.navigate("Login");
+          return;
+        }
+
+        // Aluguéis encontrados
+        if (res.ok) {
+          const data = await res.json();
+
+          if (Array.isArray(data)) {
+            const hoje = new Date();
+
+            const idsAtivos = new Set<number>(
+              data
+                .filter(
+                  (a: any) =>
+                    new Date(a.data_fim) >= hoje
+                )
+                .map((a: any) =>
+                  Number(a.livro_id)
+                )
+            );
+
+            setLivrosAlugadosIds(idsAtivos);
+          }
+        } else {
+          console.log(
+            "Erro ao buscar aluguéis:",
+            res.status
+          );
+        }
+
+      } catch (err) {
+        console.log(
+          "Erro ao recuperar sessão:",
+          err
+        );
       }
     }
+
     recuperarSessao();
   }, []);
 
