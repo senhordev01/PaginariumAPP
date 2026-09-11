@@ -45,6 +45,33 @@ import Lupa from "../assets/Lupa.png";
 const BASE = "https://paginariumapi.onrender.com";
 
 // =====================================================
+// RESOLVER URL DA CAPA
+// =====================================================
+
+function resolverCapaUrl(
+  capaUrl?: string
+): string | undefined {
+
+  if (!capaUrl) {
+    return undefined;
+  }
+
+  if (
+    capaUrl.startsWith("http://") ||
+    capaUrl.startsWith("https://")
+  ) {
+    return capaUrl;
+  }
+
+  const caminho =
+    capaUrl.startsWith("/")
+      ? capaUrl
+      : `/${capaUrl}`;
+
+  return `${BASE}${caminho}`;
+}
+
+// =====================================================
 // TIPOS
 // =====================================================
 
@@ -1323,6 +1350,10 @@ export default function Inicio() {
             </View>
           }
 
+          /* =================================================
+              PESQUISA
+          ================================================= */
+
           ListHeaderComponent={
             <View
               style={{
@@ -1333,11 +1364,6 @@ export default function Inicio() {
                 marginBottom: 20,
 
                 marginTop: 10,
-
-                paddingHorizontal:
-                  Mobile
-                    ? 10
-                    : 0,
               }}
             >
 
@@ -1345,12 +1371,10 @@ export default function Inicio() {
                 style={{
                   width:
                     Mobile
-                      ? "100%"
-                      : 550,
-
-                  maxWidth:
-                    Mobile
-                      ? 550
+                      ? Math.min(
+                          width - 40,
+                          380
+                        )
                       : 550,
 
                   height: 50,
@@ -1358,6 +1382,8 @@ export default function Inicio() {
                   flexDirection: "row",
 
                   alignItems: "center",
+
+                  alignSelf: "center",
                 }}
               >
 
@@ -1382,6 +1408,8 @@ export default function Inicio() {
 
                   style={{
                     flex: 1,
+
+                    minWidth: 0,
 
                     height: 50,
 
@@ -1481,6 +1509,10 @@ export default function Inicio() {
             </View>
           }
 
+          // =================================================
+          // CARDS
+          // =================================================
+
           renderItem={({ item }) => {
 
             const jaAlugado =
@@ -1503,13 +1535,13 @@ export default function Inicio() {
                           380,
 
                         padding:
-                          15,
+                          12,
 
                         marginHorizontal:
                           10,
 
                         marginVertical:
-                          10,
+                          8,
                       }
                     : {
                         width: 650,
@@ -1528,27 +1560,47 @@ export default function Inicio() {
                 <Image
                   source={{
                     uri:
-                      item.capa_url,
+                      resolverCapaUrl(
+                        item.capa_url
+                      ),
                   }}
 
                   resizeMode="cover"
 
+                  onError={(evento) => {
+
+                    console.log(
+                      "❌ Falha ao carregar capa:",
+                      item.nome,
+                      resolverCapaUrl(
+                        item.capa_url
+                      ),
+                      evento.nativeEvent
+                        .error
+                    );
+                  }}
+
                   style={[
                     styles.capa,
+
+                    {
+                      backgroundColor:
+                        "#e0e0e0",
+                    },
 
                     Mobile
                       ? {
                           width:
                             Math.min(
-                              width - 100,
-                              230
+                              width - 220,
+                              150
                             ),
 
                           height:
                             Math.min(
-                              (width - 100) *
+                              (width - 220) *
                                 1.35,
-                              310
+                              205
                             ),
                         }
                       : {
@@ -1577,10 +1629,7 @@ export default function Inicio() {
                     fontWeight:
                       "bold",
 
-                    color:
-                      isDark
-                        ? "white"
-                        : "black",
+                    color: "black",
 
                     textAlign:
                       "center",
@@ -1604,10 +1653,7 @@ export default function Inicio() {
                   style={{
                     width: "100%",
 
-                    color:
-                      isDark
-                        ? "#ccc"
-                        : "#333",
+                    color: "#333",
 
                     textAlign:
                       "center",
@@ -1626,10 +1672,7 @@ export default function Inicio() {
                   style={{
                     width: "100%",
 
-                    color:
-                      isDark
-                        ? "#ccc"
-                        : "#333",
+                    color: "#333",
 
                     textAlign:
                       "center",
