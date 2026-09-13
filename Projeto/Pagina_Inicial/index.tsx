@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   StyleSheet,
@@ -43,6 +43,8 @@ import Lupa from "../assets/Lupa.png";
 // =====================================================
 
 const BASE = "https://paginariumapi.onrender.com";
+
+const ALUGUEL_PENDENTE_KEY = "aluguel_pendente";
 
 // =====================================================
 // RESOLVER URL DA CAPA
@@ -798,6 +800,13 @@ export default function Inicio() {
             return;
           }
 
+          // Retoma automaticamente um aluguel que tenha
+          // ficado pendente por falta de internet.
+          await processarAluguelPendente(
+            tokenSalvo,
+            false
+          );
+
           await sincronizarDados(
             tokenSalvo,
             usuarioStorage
@@ -912,174 +921,255 @@ export default function Inicio() {
     creditoAtual;
 
   // ===================================================
+  // ALUGUEL PENDENTE / OFFLINE FIRST
+  // ===================================================
+
+  const processandoAluguelPendente = useRef(false);
+
+  async function salvarAluguelPendente(
+    livroId: number,
+    mesesAluguel: number
+  ) {
+    await AsyncStorage.setItem(
+      ALUGUEL_PENDENTE_KEY,
+      JSON.stringify({
+        livro_id: livroId,
+        meses: mesesAluguel,
+      })
+    );
+  }
+
+  async function limparAluguelPendente() {
+    await AsyncStorage.removeItem(
+      ALUGUEL_PENDENTE_KEY
+    );
+  }
+
+  async function finalizarAluguelConfirmado(
+    tkn: string,
+    data: any,
+    mesesAluguel: number,
+    mostrarSucesso: boolean = true
+  ) {
+    await limparAluguelPendente();
+
+    setUsuario((usuarioAnterior) => {
+      if (!usuarioAnterior) {
+        return usuarioAnterior;
+      }
+
+      const atualizado: Usuario = {
+        ...usuarioAnterior,
+        credito: Number(data.novo_credito),
+      };
+
+      AsyncStorage.setItem(
+        "usuario",
+        JSON.stringify(atualizado)
+      );
+
+      return atualizado;
+    });
+
+    await carregarAlugueisAtivos(tkn);
+    await carregarLivros();
+
+    if (mostrarSucesso) {
+      setLivroSelecionado(null);
+      setInserirValor("");
+
+      Alert.alert(
+        "Sucesso!",
+        `Livro alugado por ${mesesAluguel} ${
+          mesesAluguel === 1 ? "mês" : "meses"
+        }!`
+      );
+    }
+  }
+
+  async function processarAluguelPendente(
+    tkn: string,
+    mostrarSucesso: boolean = false
+  ) {
+    if (processandoAluguelPendente.current) {
+      return;
+    }
+
+    const pendenteSalvo =
+      await AsyncStorage.getItem(
+        ALUGUEL_PENDENTE_KEY
+      );
+
+    if (!pendenteSalvo) {
+      return;
+    }
+
+    let pendente: {
+      livro_id: number;
+      meses: number;
+    };
+
+    try {
+      pendente = JSON.parse(pendenteSalvo);
+    } catch (erro) {
+      console.log(
+        "❌ Erro ao ler aluguel pendente:",
+        erro
+      );
+      await limparAluguelPendente();
+      return;
+    }
+
+    if (
+      !pendente?.livro_id ||
+      !pendente?.meses ||
+      pendente.meses <= 0
+    ) {
+      await limparAluguelPendente();
+      return;
+    }
+
+    processandoAluguelPendente.current = true;
+    setCarregando(true);
+
+    try {
+      while (true) {
+        try {
+          const res = await fetch(
+            `${BASE}/alugueis`,
+            {
+              method: "POST",
+              cache: "no-store",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${tkn}`,
+                "Cache-Control": "no-cache",
+              },
+              body: JSON.stringify({
+                livro_id: pendente.livro_id,
+                meses: pendente.meses,
+              }),
+            }
+          );
+
+          if (res.status === 401 || res.status === 403) {
+            await limparAluguelPendente();
+            await handleUnauthorized();
+            return;
+          }
+
+          const data = await res.json();
+
+          if (res.ok) {
+            await finalizarAluguelConfirmado(
+              tkn,
+              data,
+              pendente.meses,
+              mostrarSucesso
+            );
+            return;
+          }
+
+          // 409 pode acontecer se o servidor registrou o
+          // aluguel antes de a resposta chegar ao aparelho.
+          if (res.status === 409) {
+            await limparAluguelPendente();
+
+            const usuarioServidor = await carregarUsuario(
+              tkn,
+              Number(usuario?.id)
+            );
+
+            if (usuarioServidor) {
+              setUsuario(usuarioServidor);
+              await AsyncStorage.setItem(
+                "usuario",
+                JSON.stringify(usuarioServidor)
+              );
+            }
+
+            await carregarAlugueisAtivos(tkn);
+            await carregarLivros();
+
+            if (mostrarSucesso) {
+              setLivroSelecionado(null);
+              setInserirValor("");
+
+              Alert.alert(
+                "Aluguel confirmado",
+                "O livro já foi registrado para você."
+              );
+            }
+
+            return;
+          }
+
+          // Erros definitivos, como saldo insuficiente,
+          // não devem ficar tentando para sempre.
+          await limparAluguelPendente();
+
+          if (mostrarSucesso) {
+            Alert.alert(
+              "Erro",
+              typeof data === "string"
+                ? data
+                : "Erro ao alugar"
+            );
+          }
+
+          return;
+        } catch (erro) {
+          // Sem internet: mantém a pendência e continua
+          // tentando até a conexão voltar.
+          console.log(
+            "🌐 Sem conexão. Aluguel aguardando rede...",
+            erro
+          );
+
+          await new Promise((resolver) =>
+            setTimeout(resolver, 3000)
+          );
+        }
+      }
+    } finally {
+      processandoAluguelPendente.current = false;
+      setCarregando(false);
+    }
+  }
+
+  // ===================================================
   // CONFIRMAR ALUGUEL
   // ===================================================
 
   async function confirmarAluguel() {
-
     if (
       !livroSelecionado ||
       isNaN(meses) ||
       meses <= 0 ||
       saldoInsuficiente
     ) {
-
       return;
     }
 
     if (!token) {
-
       await handleUnauthorized();
-
       return;
     }
 
-    setCarregando(
-      true
+    const livroId = livroSelecionado.id;
+    const mesesAluguel = meses;
+
+    // Salva antes de tentar a API. Se a internet cair ou
+    // o aplicativo for fechado, a solicitação não é perdida.
+    await salvarAluguelPendente(
+      livroId,
+      mesesAluguel
     );
 
-    try {
-
-      const res =
-        await fetch(
-          `${BASE}/alugueis`,
-          {
-            method: "POST",
-
-            cache: "no-store",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
-
-              "Cache-Control":
-                "no-cache",
-            },
-
-            body:
-              JSON.stringify({
-                livro_id:
-                  livroSelecionado.id,
-
-                meses,
-              }),
-          }
-        );
-
-      if (
-        res.status === 401 ||
-        res.status === 403
-      ) {
-
-        setLivroSelecionado(
-          null
-        );
-
-        await handleUnauthorized();
-
-        return;
-      }
-
-      const data =
-        await res.json();
-
-      if (!res.ok) {
-
-        Alert.alert(
-          "Erro",
-          typeof data === "string"
-            ? data
-            : "Erro ao alugar"
-        );
-
-        return;
-      }
-
-      // =============================================
-      // ATUALIZAR CRÉDITO
-      // =============================================
-
-      setUsuario(
-        (usuarioAnterior) => {
-
-          if (
-            !usuarioAnterior
-          ) {
-
-            return usuarioAnterior;
-          }
-
-          const atualizado: Usuario =
-            {
-              ...usuarioAnterior,
-
-              credito:
-                Number(
-                  data.novo_credito
-                ),
-            };
-
-          AsyncStorage.setItem(
-            "usuario",
-            JSON.stringify(
-              atualizado
-            )
-          );
-
-          return atualizado;
-        }
-      );
-
-      // =============================================
-      // ATUALIZAR LIVROS ALUGADOS
-      // =============================================
-
-      await carregarAlugueisAtivos(
-        token
-      );
-
-      // =============================================
-      // FECHAR MODAL
-      // =============================================
-
-      setLivroSelecionado(
-        null
-      );
-
-      setInserirValor(
-        ""
-      );
-
-      Alert.alert(
-        "Sucesso!",
-        `Livro alugado por ${meses} ${
-          meses === 1
-            ? "mês"
-            : "meses"
-        }!`
-      );
-
-    } catch (erro) {
-
-      console.log(
-        "❌ Erro ao realizar aluguel:",
-        erro
-      );
-
-      Alert.alert(
-        "Erro",
-        "Não foi possível conectar ao servidor"
-      );
-
-    } finally {
-
-      setCarregando(
-        false
-      );
-    }
+    await processarAluguelPendente(
+      token,
+      true
+    );
   }
 
   // ===================================================
@@ -2061,12 +2151,30 @@ export default function Inicio() {
 
               </TouchableOpacity>
 
+              {carregando && (
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#666",
+                    fontSize: 12,
+                    marginTop: 10,
+                    lineHeight: 18,
+                  }}
+                >
+                  Processando aluguel...{"\n"}
+                  Se a internet caiu, o aluguel continuará
+                  aguardando a conexão e será enviado
+                  automaticamente quando ela voltar.
+                </Text>
+              )}
+
               <TouchableOpacity
-                onPress={() =>
-                  setLivroSelecionado(
-                    null
-                  )
-                }
+                disabled={carregando}
+                onPress={() => {
+                  if (!carregando) {
+                    setLivroSelecionado(null);
+                  }
+                }}
 
                 style={{
                   position:
