@@ -1615,7 +1615,10 @@ export default function Inicio() {
               <View
                 style={[
                   styles.cardLivro,
-
+                  {
+                    backgroundColor:
+                      isDark ? "#333333" : "white",
+                  },
                   Mobile
                     ? {
                         width:
@@ -1719,7 +1722,7 @@ export default function Inicio() {
                     fontWeight:
                       "bold",
 
-                    color: "black",
+                    color: isDark ? "white" : "black",
 
                     textAlign:
                       "center",
@@ -1743,8 +1746,8 @@ export default function Inicio() {
                   style={{
                     width: "100%",
 
-                    color: "#333",
-
+                    color: isDark ? "#dddddd" : "#333",
+                    
                     textAlign:
                       "center",
 
@@ -1762,7 +1765,7 @@ export default function Inicio() {
                   style={{
                     width: "100%",
 
-                    color: "#333",
+                    color: isDark ? "#dddddd" : "#333",
 
                     textAlign:
                       "center",
@@ -1892,7 +1895,10 @@ export default function Inicio() {
           >
 
             <View
-              style={styles.modalBox}
+              style={[
+                styles.modalBox,
+                { backgroundColor: isDark ? "#333333" : "white" },
+              ]}
             >
 
               <Text
@@ -2155,7 +2161,7 @@ export default function Inicio() {
                 <Text
                   style={{
                     textAlign: "center",
-                    color: "#666",
+                    color: isDark ? "#cccccc" : "#666",
                     fontSize: 12,
                     marginTop: 10,
                     lineHeight: 18,

@@ -3,6 +3,8 @@ import {
   StyleSheet,
   View,
   Text,
+  Alert,
+  ScrollView,
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
@@ -83,12 +85,7 @@ export default function Inicio_Adm() {
 
   const [editId, setEditId] = useState<number | null>(null);
 
-  const isDark = tema === "black";
-
-  // =========================================================
-  // RECUPERAR USUÁRIO APÓS F5
-  // =========================================================
-
+  // Recuperar usuário salvo
   useEffect(() => {
     async function recuperarUsuario() {
       try {
@@ -96,9 +93,6 @@ export default function Inicio_Adm() {
 
         if (salvo) {
           const usuarioSalvo = JSON.parse(salvo);
-
-          console.log("USUÁRIO RECUPERADO:", usuarioSalvo);
-
           setUsuario(usuarioSalvo);
         }
       } catch (erro) {
@@ -109,10 +103,7 @@ export default function Inicio_Adm() {
     recuperarUsuario();
   }, []);
 
-  // =========================================================
-  // TEMA
-  // =========================================================
-
+  // Tema
   function Tema_Escuro() {
     setTema("black");
   }
@@ -121,10 +112,7 @@ export default function Inicio_Adm() {
     setTema("#e9eaecde");
   }
 
-  // =========================================================
-  // CARREGAR LIVROS
-  // =========================================================
-
+  // Carregar livros
   async function carregarLivros() {
     try {
       const res = await fetch(`${API}/livros`, {
@@ -135,79 +123,112 @@ export default function Inicio_Adm() {
       console.log("STATUS /livros:", res.status);
 
       if (!res.ok) {
-        console.log("ERRO AO BUSCAR LIVROS:", res.status);
+        const texto = await res.text();
+        console.log("ERRO AO BUSCAR LIVROS:", texto);
+
+        Alert.alert(
+          "Erro",
+          `Não foi possível carregar os livros. Código HTTP: ${res.status}.`
+        );
         return;
       }
 
       const data: Livro[] = await res.json();
 
-      console.log("LIVROS RECEBIDOS:", data);
-
       setLivros(data);
     } catch (err) {
       console.log("ERRO AO CARREGAR LIVROS:", err);
+
+      Alert.alert(
+        "Erro de conexão",
+        "Não foi possível carregar os livros. Verifique sua conexão."
+      );
     }
   }
 
-  // Carregar livros ao abrir a tela
   useEffect(() => {
     carregarLivros();
   }, []);
 
-  // =========================================================
-  // SELECIONAR CAPA
-  // =========================================================
-
+  // Selecionar capa
   async function selecionarCapa() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
+    try {
+      const permissao =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!result.canceled) {
-      const asset = result.assets[0];
+      if (!permissao.granted) {
+        Alert.alert(
+          "Permissão necessária",
+          "Permita o acesso à galeria para selecionar a capa."
+        );
+        return;
+      }
 
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-
-      const isPng = asset.uri.toLowerCase().endsWith(".png");
-
-      setCapa({
-        uri: asset.uri,
-        blob,
-        name: asset.fileName ?? (isPng ? "capa.png" : "capa.jpg"),
-        type: isPng ? "image/png" : "image/jpeg",
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
       });
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+
+        const nomeArquivo =
+          asset.fileName ??
+          asset.uri.split("/").pop() ??
+          "capa.jpg";
+
+        const isPng = nomeArquivo.toLowerCase().endsWith(".png");
+
+        setCapa({
+          uri: asset.uri,
+          name: nomeArquivo,
+          type: asset.mimeType ?? (isPng ? "image/png" : "image/jpeg"),
+        });
+      }
+    } catch (erro) {
+      console.log("ERRO AO SELECIONAR CAPA:", erro);
+      Alert.alert("Erro", "Não foi possível selecionar a capa.");
     }
   }
 
-  // =========================================================
-  // SELECIONAR PDF
-  // =========================================================
-
+  // Selecionar PDF
   async function selecionarPdf() {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "application/pdf",
-    });
-
-    if (!result.canceled) {
-      const asset = result.assets[0];
-
-      setPdf({
-        uri: asset.uri,
-        name: asset.name ?? "livro.pdf",
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
         type: "application/pdf",
+        copyToCacheDirectory: true,
       });
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+
+        setPdf({
+          uri: asset.uri,
+          name: asset.name ?? "livro.pdf",
+          type: asset.mimeType ?? "application/pdf",
+        });
+      }
+    } catch (erro) {
+      console.log("ERRO AO SELECIONAR PDF:", erro);
+      Alert.alert("Erro", "Não foi possível selecionar o PDF.");
     }
   }
 
-  // =========================================================
-  // SALVAR / EDITAR LIVRO
-  // =========================================================
-
+  // Salvar ou editar livro
   async function salvarLivro() {
-    if (!nome.trim() || !genero.trim()) {
-      console.log("Nome ou gênero não preenchido.");
+    const valorNumerico = Number(valor.trim().replace(",", "."));
+
+    if (
+      !nome.trim() ||
+      !genero.trim() ||
+      valor.trim() === "" ||
+      !Number.isFinite(valorNumerico) ||
+      valorNumerico < 0
+    ) {
+      Alert.alert(
+        "Dados incompletos",
+        "Preencha nome, gênero e um valor válido para o livro."
+      );
       return;
     }
 
@@ -216,43 +237,43 @@ export default function Inicio_Adm() {
 
       formData.append("nome", nome.trim());
       formData.append("genero", genero.trim());
-      formData.append("valor", String(Number(valor)));
+      formData.append("valor", String(valorNumerico));
 
-      // CAPA
+      // Enviar capa no formato esperado pelo React Native
       if (capa) {
-        const capaBlob = await fetch(capa.uri).then((r) => r.blob());
-
         formData.append(
           "capa",
-          capaBlob,
-          capa.name ?? "capa.jpg"
+          {
+            uri: capa.uri,
+            name: capa.name ?? "capa.jpg",
+            type: capa.type ?? "image/jpeg",
+          } as any
         );
       }
 
-      // PDF
+      // Enviar PDF no formato esperado pelo React Native
       if (pdf) {
-        const pdfBlob = await fetch(pdf.uri).then((r) => r.blob());
-
         formData.append(
           "pdf",
-          pdfBlob,
-          pdf.name ?? "livro.pdf"
+          {
+            uri: pdf.uri,
+            name: pdf.name ?? "livro.pdf",
+            type: pdf.type ?? "application/pdf",
+          } as any
         );
       }
 
-      let response;
+      let response: Response;
 
-      // EDITAR
       if (editId !== null) {
+        // Atualizar livro
         response = await fetch(`${API}/livros/${editId}`, {
           method: "PUT",
           body: formData,
           cache: "no-store",
         });
-      }
-
-      // NOVO LIVRO
-      else {
+      } else {
+        // Cadastrar novo livro
         response = await fetch(`${API}/livros`, {
           method: "POST",
           body: formData,
@@ -260,25 +281,22 @@ export default function Inicio_Adm() {
         });
       }
 
-      const text = await response.text();
+      const texto = await response.text();
 
       console.log("STATUS SALVAR:", response.status);
-      console.log("RESPOSTA:", text);
+      console.log("RESPOSTA:", texto);
 
       if (!response.ok) {
-        console.log("ERRO AO SALVAR LIVRO");
+        Alert.alert(
+          "Não foi possível salvar",
+          `A API retornou o status ${response.status}.\n${texto}`
+        );
         return;
       }
 
-      // =====================================================
-      // BUSCAR NOVAMENTE OS LIVROS NA API
-      // =====================================================
+      const estavaEditando = editId !== null;
 
       await carregarLivros();
-
-      // =====================================================
-      // LIMPAR FORMULÁRIO
-      // =====================================================
 
       setNome("");
       setGenero("");
@@ -289,67 +307,104 @@ export default function Inicio_Adm() {
 
       setModal(false);
 
+      Alert.alert(
+        "Sucesso",
+        estavaEditando
+          ? "Livro atualizado."
+          : "Livro cadastrado."
+      );
     } catch (err) {
       console.log("ERRO AO SALVAR LIVRO:", err);
+
+      Alert.alert(
+        "Erro",
+        "Não foi possível salvar o livro. Verifique a conexão e tente novamente."
+      );
     }
   }
 
-  // =========================================================
-  // DELETAR
-  // =========================================================
-
+  // Remover livro
   async function deletar(id: number) {
-    try {
-      const response = await fetch(`${API}/livros/${id}`, {
-        method: "DELETE",
-        cache: "no-store",
-      });
+    Alert.alert(
+      "Remover livro",
+      "Tem certeza de que deseja remover este livro?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Remover",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API}/livros/${id}`, {
+                method: "DELETE",
+                cache: "no-store",
+              });
 
-      console.log("STATUS DELETE:", response.status);
+              const texto = await response.text();
 
-      if (!response.ok) {
-        console.log("ERRO AO DELETAR LIVRO");
-        return;
-      }
+              console.log("STATUS DELETE:", response.status);
+              console.log("RESPOSTA DELETE:", texto);
 
-      await carregarLivros();
+              if (!response.ok) {
+                Alert.alert(
+                  "Não foi possível remover",
+                  `A API retornou o status ${response.status}.\n${texto}`
+                );
+                return;
+              }
 
-    } catch (err) {
-      console.log("ERRO AO DELETAR:", err);
-    }
+              await carregarLivros();
+
+              Alert.alert("Sucesso", "Livro removido.");
+            } catch (err) {
+              console.log("ERRO AO DELETAR:", err);
+
+              Alert.alert(
+                "Erro",
+                "Não foi possível remover o livro. Verifique a conexão."
+              );
+            }
+          },
+        },
+      ]
+    );
   }
 
-  // =========================================================
-  // EDITAR
-  // =========================================================
-
+  // Preparar edição
   function editar(item: Livro) {
     setNome(item.nome);
     setGenero(item.genero);
+    setValor(String(item.valor));
+    setCapa(null);
+    setPdf(null);
     setEditId(item.id);
     setModal(true);
-    setValor(String(item.valor));
   }
 
-  // =========================================================
-  // INTERFACE
-  // =========================================================
+  // Abrir formulário de novo livro
+  function novoLivro() {
+    setNome("");
+    setGenero("");
+    setValor("");
+    setCapa(null);
+    setPdf(null);
+    setEditId(null);
+    setModal(true);
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: tema }}>
-
         {/* NAVBAR */}
 
         <SafeAreaView style={styles.navbar}>
-
           <TouchableOpacity
             onPress={() => navigation.navigate("Login")}
           >
-            <Image
-              source={Logout}
-              style={styles.icon}
-            />
+            <Image source={Logout} style={styles.icon} />
           </TouchableOpacity>
 
           <Text
@@ -369,15 +424,10 @@ export default function Inicio_Adm() {
             }
           >
             <Image
-              source={
-                tema === "#e9eaecde"
-                  ? Lua
-                  : Sol
-              }
+              source={tema === "#e9eaecde" ? Lua : Sol}
               style={styles.icon}
             />
           </TouchableOpacity>
-
         </SafeAreaView>
 
         {/* LISTA DE LIVROS */}
@@ -386,50 +436,49 @@ export default function Inicio_Adm() {
           data={livros}
           key={colunas}
           numColumns={colunas}
-          keyExtractor={(i) => i.id.toString()}
-
+          keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{
             paddingVertical: 20,
             alignItems: "center",
+            paddingBottom: 110,
           }}
-
-          columnWrapperStyle={
-            colunas > 1
-              ? {
-                  justifyContent: "center",
-                }
-              : undefined
-          }
-
           renderItem={({ item }) => (
-
             <View
               style={{
                 padding: 15,
-                margin: 20,
-                width: 650,
-                height: 670,
-
+                margin: Mobile ? 8 : 20,
+                width: Mobile ? Math.min(width - 24, 420) : 650,
+                minHeight: Mobile ? 0 : 670,
                 backgroundColor:
-                  tema === "#e9eaecde"
-                    ? "white"
-                    : "#333",
-
+                  tema === "#e9eaecde" ? "white" : "#333",
                 borderRadius: 20,
-
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-
               {/* CAPA */}
 
-              <Image
-                source={{
-                  uri: item.capa_url,
-                }}
-                style={styles.capa}
-              />
+              {item.capa_url ? (
+                <Image
+                  source={{ uri: item.capa_url }}
+                  style={[
+                    styles.capa,
+                    {
+                      width: Mobile
+                        ? Math.min(width - 100, 260)
+                        : 600,
+                      height: Mobile
+                        ? Math.min((width - 100) * 1.15, 320)
+                        : 500,
+                    },
+                  ]}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.semCapa}>
+                  <Text>Sem capa disponível</Text>
+                </View>
+              )}
 
               {/* NOME */}
 
@@ -437,11 +486,8 @@ export default function Inicio_Adm() {
                 style={{
                   fontSize: 18,
                   fontWeight: "bold",
-
-                  color:
-                    tema === "#e9eaecde"
-                      ? "#333"
-                      : "white",
+                  textAlign: "center",
+                  color: tema === "#e9eaecde" ? "#333" : "white",
                 }}
               >
                 {item.nome}
@@ -451,13 +497,10 @@ export default function Inicio_Adm() {
 
               <Text
                 style={{
-                  color:
-                    tema === "#e9eaecde"
-                      ? "#333"
-                      : "white",
+                  color: tema === "#e9eaecde" ? "#333" : "white",
                 }}
               >
-                Genero: {item.genero}
+                Gênero: {item.genero}
               </Text>
 
               {/* VALOR */}
@@ -465,11 +508,7 @@ export default function Inicio_Adm() {
               <Text
                 style={{
                   marginBottom: 10,
-
-                  color:
-                    tema === "#e9eaecde"
-                      ? "#333"
-                      : "white",
+                  color: tema === "#e9eaecde" ? "#333" : "white",
                 }}
               >
                 Valor: {item.valor} / Mês
@@ -477,291 +516,286 @@ export default function Inicio_Adm() {
 
               {/* BOTÕES */}
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  gap: 10,
-                }}
-              >
-
+              <View style={styles.botoesLivro}>
                 <TouchableOpacity
                   onPress={() => editar(item)}
-                  style={{
-                    backgroundColor: "#fc4e03",
-                    padding: 10,
-                  }}
+                  style={styles.btnEditar}
                 >
-                  <Text
-                    style={{
-                      color: "white",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Editar
-                  </Text>
+                  <Text style={styles.textoBotao}>Editar</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => deletar(item.id)}
-                  style={{
-                    backgroundColor: "red",
-                    padding: 10,
-                  }}
+                  style={styles.btnDeletar}
                 >
-                  <Text
-                    style={{
-                      color: "white",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Deletar
-                  </Text>
+                  <Text style={styles.textoBotao}>Remover</Text>
                 </TouchableOpacity>
-
               </View>
-
             </View>
-
           )}
+          ListEmptyComponent={
+            <View style={{ padding: 25 }}>
+              <Text
+                style={{
+                  color: tema === "#e9eaecde" ? "#333" : "white",
+                  textAlign: "center",
+                }}
+              >
+                Nenhum livro encontrado.
+              </Text>
+            </View>
+          }
         />
 
-        {/* BOTÃO + */}
+        {/* BOTÃO PARA ADICIONAR */}
 
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => {
-
-            setNome("");
-            setGenero("");
-            setValor("");
-
-            setCapa(null);
-            setPdf(null);
-
-            setEditId(null);
-
-            setModal(true);
-          }}
+          onPress={novoLivro}
         >
-          <Text
-            style={{
-              color: "white",
-              fontSize: 40,
-              bottom: 5,
-              fontWeight: "bold",
-            }}
-          >
-            +
-          </Text>
+          <Text style={styles.textoFab}>+</Text>
         </TouchableOpacity>
 
-        {/* MODAL */}
+        {/* MODAL DE CADASTRO E EDIÇÃO */}
 
         <Modal
           visible={modal}
           transparent
           animationType="slide"
+          onRequestClose={() => setModal(false)}
         >
-
           <View style={styles.modal}>
-
-            <View style={styles.modalBox}>
-
-              {/* NOME */}
-
-              <TextInput
-                placeholder="Nome"
-                value={nome}
-                onChangeText={setNome}
-                style={styles.input}
-              />
-
-              {/* GÊNERO */}
-
-              <TextInput
-                placeholder="Gênero"
-                value={genero}
-                onChangeText={setGenero}
-                style={styles.input}
-              />
-
-              {/* CAPA */}
-
-              <TouchableOpacity
-                onPress={selecionarCapa}
-                style={styles.input}
+            <View
+              style={[
+                styles.modalBox,
+                {
+                  width: Mobile ? "94%" : "80%",
+                  maxHeight: "90%",
+                },
+              ]}
+            >
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator
+                contentContainerStyle={{ paddingBottom: 8 }}
               >
-                <Text
-                  style={{
-                    textAlign: "center",
-                  }}
-                >
-                  {capa
-                    ? capa.name
-                    : "Selecionar Capa"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* PDF */}
-
-              <TouchableOpacity
-                onPress={selecionarPdf}
-                style={styles.input}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                  }}
-                >
-                  {pdf
-                    ? pdf.name
-                    : "Selecionar o PDF do Livro"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* VALOR */}
-
-              <TextInput
-                keyboardType="decimal-pad"
-                placeholder="Digite o valor do livro"
-                value={valor}
-                onChangeText={setValor}
-                style={styles.input}
-              />
-
-              {/* SALVAR */}
-
-              <TouchableOpacity
-                style={styles.btnSalvar}
-                onPress={salvarLivro}
-              >
-                <Text
-                  style={{
-                    color: "white",
-                  }}
-                >
+                <Text style={styles.tituloModal}>
                   {editId !== null
-                    ? "Atualizar"
-                    : "Salvar"}
+                    ? "Atualizar livro"
+                    : "Cadastrar livro"}
                 </Text>
-              </TouchableOpacity>
 
-              {/* FECHAR */}
+                {/* NOME */}
 
-              <TouchableOpacity
-                onPress={() => setModal(false)}
-              >
-                <Text
-                  style={{
-                    marginTop: 10,
-                    color: "#cc1f00",
-                  }}
+                <TextInput
+                  placeholder="Nome do livro"
+                  value={nome}
+                  onChangeText={setNome}
+                  style={styles.input}
+                />
+
+                {/* GÊNERO */}
+
+                <TextInput
+                  placeholder="Gênero"
+                  value={genero}
+                  onChangeText={setGenero}
+                  style={styles.input}
+                />
+
+                {/* CAPA */}
+
+                <TouchableOpacity
+                  onPress={selecionarCapa}
+                  style={styles.input}
                 >
-                  Fechar
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.textoArquivo}>
+                    {capa ? capa.name : "Selecionar capa"}
+                  </Text>
+                </TouchableOpacity>
 
+                {/* PDF */}
+
+                <TouchableOpacity
+                  onPress={selecionarPdf}
+                  style={styles.input}
+                >
+                  <Text style={styles.textoArquivo}>
+                    {pdf
+                      ? pdf.name
+                      : "Selecionar PDF do livro"}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* VALOR */}
+
+                <TextInput
+                  keyboardType="decimal-pad"
+                  placeholder="Valor do livro"
+                  value={valor}
+                  onChangeText={setValor}
+                  style={styles.input}
+                />
+
+                {/* SALVAR */}
+
+                <TouchableOpacity
+                  style={styles.btnSalvar}
+                  onPress={salvarLivro}
+                >
+                  <Text style={styles.textoBotao}>
+                    {editId !== null ? "Atualizar" : "Salvar"}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* FECHAR */}
+
+                <TouchableOpacity
+                  onPress={() => setModal(false)}
+                  style={styles.btnFechar}
+                >
+                  <Text style={{ color: "#cc1f00" }}>Fechar</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
-
           </View>
-
         </Modal>
-
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// =========================================================
 // ESTILOS
-// =========================================================
 
 const styles = StyleSheet.create({
-
   navbar: {
     width: "100%",
-    height: 100,
+    minHeight: 85,
     backgroundColor: "blue",
-
     flexDirection: "row",
-
     justifyContent: "space-between",
     alignItems: "center",
-
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
 
   icon: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     resizeMode: "contain",
   },
 
   fab: {
     position: "absolute",
-
-    bottom: 30,
-    right: 30,
-
-    width: 70,
-    height: 70,
-
-    borderRadius: 50,
-
+    bottom: 25,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "blue",
-
     alignItems: "center",
     justifyContent: "center",
+    elevation: 5,
+  },
+
+  textoFab: {
+    color: "white",
+    fontSize: 40,
+    bottom: 3,
+    fontWeight: "bold",
   },
 
   modal: {
     flex: 1,
-
     backgroundColor: "#000000aa",
-
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: 15,
   },
 
   modalBox: {
-    width: "80%",
-
     backgroundColor: "white",
-
     padding: 20,
-
     borderRadius: 10,
+  },
+
+  tituloModal: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 15,
   },
 
   input: {
     borderWidth: 1,
-
     marginBottom: 10,
-
-    padding: 10,
-
+    padding: 12,
     borderRadius: 8,
-
     textAlign: "center",
+    borderColor: "#aaa",
+    minHeight: 45,
+    justifyContent: "center",
+  },
+
+  textoArquivo: {
+    textAlign: "center",
+    color: "#222",
   },
 
   btnSalvar: {
     backgroundColor: "green",
-
-    padding: 10,
-
+    padding: 13,
     alignItems: "center",
-
     borderRadius: 8,
+    marginTop: 5,
+  },
+
+  btnFechar: {
+    alignItems: "center",
+    padding: 12,
+  },
+
+  botoesLivro: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 8,
+  },
+
+  btnEditar: {
+    backgroundColor: "#fc4e03",
+    padding: 10,
+    borderRadius: 5,
+    minWidth: 80,
+    alignItems: "center",
+  },
+
+  btnDeletar: {
+    backgroundColor: "red",
+    padding: 10,
+    borderRadius: 5,
+    minWidth: 80,
+    alignItems: "center",
+  },
+
+  textoBotao: {
+    color: "white",
+    fontWeight: "bold",
   },
 
   capa: {
-    width: 600,
-    height: 500,
-
+    maxWidth: "100%",
     borderRadius: 8,
-
     marginBottom: 10,
   },
 
+  semCapa: {
+    width: 180,
+    height: 220,
+    backgroundColor: "#ddd",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
 });
