@@ -1,4 +1,7 @@
+
 import {
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -8,11 +11,12 @@ import {
   TouchableOpacity,
   Text,
   Modal,
+  StatusBar,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type RootStackParamList = {
@@ -36,7 +40,8 @@ type RootStackParamList = {
   };
 };
 
-type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProps =
+  NativeStackNavigationProp<RootStackParamList>;
 
 interface Usuario {
   id: number;
@@ -47,50 +52,142 @@ interface Usuario {
 }
 
 interface LoginResponse {
-  usuario: Usuario;
-  token: string;
+  usuario?: Usuario;
+  token?: string;
   message?: string;
+  mensagem?: string;
+  erro?: string;
 }
 
-// const API_URL = "http://10.0.10.209:8080";
 const API_URL = "https://paginariumapi.onrender.com";
+
+const CORES = {
+  fundo: "#10101C",
+  cartao: "#191927",
+  campo: "#222231",
+  borda: "#373747",
+  vermelho: "#FF2638",
+  laranja: "#FF8A24",
+  texto: "#FFFFFF",
+  textoSecundario: "#A5A5B8",
+};
 
 export default function Login() {
   const navigation = useNavigation<NavigationProps>();
 
-  const [email, setEmail] = useState<string>("");
-  const [senha, setSenha] = useState<string>("");
-  const [erro, setErro] = useState<string>("");
-  const [janelaModal, setModal] = useState<boolean>(false);
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [janelaModal, setModal] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [lembrarConta, setLembrarConta] = useState(true);
+
+  useEffect(() => {
+    async function carregarContaLembrada() {
+      try {
+        const emailSalvo =
+          await AsyncStorage.getItem("emailLembrado");
+
+        if (emailSalvo) {
+          setEmail(emailSalvo);
+          setLembrarConta(true);
+        }
+      } catch (error) {
+        console.log(
+          "Erro ao carregar conta lembrada:",
+          error
+        );
+      }
+    }
+
+    carregarContaLembrada();
+  }, []);
 
   async function login(): Promise<void> {
-    try {
-      if (!email.trim() || !senha.trim()) {
-        setErro("Preencha email e senha");
-        setModal(true);
-        return;
-      }
+    if (carregando) return;
 
+    const emailLimpo = email.trim().toLowerCase();
+
+    if (!emailLimpo || !senha) {
+      setErro("Preencha seu e-mail e sua senha.");
+      setModal(true);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) {
+      setErro("Digite um endereço de e-mail válido.");
+      setModal(true);
+      return;
+    }
+
+    setCarregando(true);
+
+    try {
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: emailLimpo,
+          senha,
+        }),
       });
 
-      const data: LoginResponse = await response.json();
+      const texto = await response.text();
+      let data: LoginResponse = {};
+
+      try {
+        data = texto ? JSON.parse(texto) : {};
+      } catch {
+        data = { message: texto };
+      }
 
       if (!response.ok) {
-        setErro(data.message || "Senha ou Email incorretos");
+        setErro(
+          data.message ||
+            data.mensagem ||
+            data.erro ||
+            "E-mail ou senha incorretos."
+        );
         setModal(true);
         return;
       }
 
-      // salva sessão no AsyncStorage para persistir após F5
-      await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+      if (!data.token || !data.usuario) {
+        setErro(
+          "O servidor não retornou os dados esperados. Tente novamente."
+        );
+        setModal(true);
+        return;
+      }
 
-      if (data.usuario?.tipo === "admin") {
-        navigation.navigate("Inicio_Adm", { usuario: data.usuario });
+      // Salva ou remove o e-mail lembrado.
+      if (lembrarConta) {
+        await AsyncStorage.setItem(
+          "emailLembrado",
+          emailLimpo
+        );
+      } else {
+        await AsyncStorage.removeItem("emailLembrado");
+      }
+
+      // Salva os dados da sessão.
+      await AsyncStorage.setItem("token", data.token);
+      await AsyncStorage.setItem(
+        "usuario",
+        JSON.stringify(data.usuario)
+      );
+
+      // Redireciona conforme o tipo de usuário.
+      if (data.usuario.tipo === "admin") {
+        navigation.navigate("Inicio_Adm", {
+          usuario: {
+            nome: data.usuario.nome,
+            email: data.usuario.email,
+          },
+        });
       } else {
         navigation.navigate("Inicio", {
           usuario: {
@@ -104,50 +201,183 @@ export default function Login() {
         });
       }
     } catch (error) {
-      console.log(error);
-      setErro("Erro de conexão com o servidor");
+      console.log("ERRO NO LOGIN:", error);
+
+      setErro(
+        "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente."
+      );
       setModal(true);
+    } finally {
+      setCarregando(false);
     }
   }
 
   return (
     <>
+      <StatusBar
+        backgroundColor={CORES.fundo}
+        barStyle="light-content"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={estilo.tela}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          <View style={{ backgroundColor: "#e9eaecde", flex: 1 }}>
-            <View style={estilo.container}>
-              <View style={estilo.Corpo_Elemento}>
-                <Text style={estilo.Titulo}>Login</Text>
+        <ScrollView
+          contentContainerStyle={estilo.conteudo}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={estilo.container}>
+            <View style={estilo.cartao}>
+              <View style={estilo.logoContainer}>
+                <Image
+                  source={require("../assets/Paginarium_icon.png")}
+                  style={estilo.logo}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <Text style={estilo.titulo}>
+                Bem-vindo de volta!
+              </Text>
+
+              <Text style={estilo.descricao}>
+                Entre na sua conta para continuar.
+              </Text>
+
+              <View style={estilo.formulario}>
+                <Text style={estilo.label}>E-mail</Text>
 
                 <TextInput
-                  keyboardType="email-address"
-                  placeholder="Digite seu email..."
-                  style={estilo.Input}
+                  placeholder="Digite seu e-mail"
+                  placeholderTextColor={CORES.textoSecundario}
+                  style={estilo.input}
                   value={email}
                   onChangeText={setEmail}
+                  keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!carregando}
+                  returnKeyType="next"
+                  accessibilityLabel="E-mail"
                 />
 
-                <TextInput
-                  placeholder="Digite sua senha..."
-                  secureTextEntry
-                  style={estilo.Input}
-                  value={senha}
-                  onChangeText={setSenha}
-                />
+                <Text style={estilo.label}>Senha</Text>
 
-                <TouchableOpacity style={estilo.Botao_Login} onPress={login}>
-                  <Text style={estilo.Texto_Botao}>Entrar</Text>
+                <View style={estilo.senhaContainer}>
+                  <TextInput
+                    placeholder="Digite sua senha"
+                    placeholderTextColor={CORES.textoSecundario}
+                    style={estilo.inputSenha}
+                    value={senha}
+                    onChangeText={setSenha}
+                    secureTextEntry={!mostrarSenha}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!carregando}
+                    returnKeyType="done"
+                    onSubmitEditing={login}
+                    accessibilityLabel="Senha"
+                  />
+
+                  <TouchableOpacity
+                    style={estilo.botaoMostrar}
+                    onPress={() =>
+                      setMostrarSenha(!mostrarSenha)
+                    }
+                    disabled={carregando}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={estilo.textoMostrar}>
+                      {mostrarSenha ? "Ocultar" : "Mostrar"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Lembrar minha conta */}
+                <TouchableOpacity
+                  style={estilo.lembrarContainer}
+                  onPress={() =>
+                    setLembrarConta(!lembrarConta)
+                  }
+                  activeOpacity={0.7}
+                  disabled={carregando}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{
+                    checked: lembrarConta,
+                  }}
+                >
+                  <View
+                    style={[
+                      estilo.checkbox,
+                      lembrarConta &&
+                        estilo.checkboxAtivo,
+                    ]}
+                  >
+                    {lembrarConta && (
+                      <Text style={estilo.checkTexto}>
+                        ✓
+                      </Text>
+                    )}
+                  </View>
+
+                  <Text style={estilo.lembrarTexto}>
+                    Lembrar minha conta
+                  </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigation.navigate("Cadastro")}>
-                  <Text style={estilo.Texto_Marcado}>Cadastrar-se</Text>
+                <TouchableOpacity
+                  style={[
+                    estilo.botaoLogin,
+                    carregando &&
+                      estilo.botaoDesabilitado,
+                  ]}
+                  onPress={login}
+                  disabled={carregando}
+                  activeOpacity={0.8}
+                >
+                  {carregando ? (
+                    <View
+                      style={estilo.carregandoContainer}
+                    >
+                      <ActivityIndicator color="#FFFFFF" />
+                      <Text style={estilo.textoBotao}>
+                        Entrando...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={estilo.textoBotao}>
+                      Entrar
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
+
+              <View style={estilo.divisorContainer}>
+                <View style={estilo.divisor} />
+                <Text style={estilo.textoDivisor}>
+                  OU
+                </Text>
+                <View style={estilo.divisor} />
+              </View>
+
+              <TouchableOpacity
+                style={estilo.botaoCadastro}
+                onPress={() =>
+                  navigation.navigate("Cadastro")
+                }
+                disabled={carregando}
+                activeOpacity={0.7}
+              >
+                <Text style={estilo.textoCadastro}>
+                  Criar uma conta
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            <Text style={estilo.rodape}>
+              PAGINARIUM
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -160,11 +390,28 @@ export default function Login() {
       >
         <View style={modalStyles.fundo}>
           <View style={modalStyles.caixa}>
-            <Text style={{ color: "red", fontSize: 16, marginBottom: 20, textAlign: "center" }}>
+            <View style={modalStyles.iconeErro}>
+              <Text style={modalStyles.exclamacao}>
+                !
+              </Text>
+            </View>
+
+            <Text style={modalStyles.titulo}>
+              Não foi possível entrar
+            </Text>
+
+            <Text style={modalStyles.mensagem}>
               {erro}
             </Text>
-            <TouchableOpacity onPress={() => setModal(false)}>
-              <Text style={modalStyles.botaoFechar}>Fechar</Text>
+
+            <TouchableOpacity
+              style={modalStyles.botao}
+              onPress={() => setModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={modalStyles.textoBotao}>
+                Entendi
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -174,30 +421,257 @@ export default function Login() {
 }
 
 const estilo = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center" },
-  Corpo_Elemento: {
-    backgroundColor: "white", width: "100%", maxWidth: 600,
-    minHeight: 500, borderRadius: 20, alignItems: "center",
-    justifyContent: "center", padding: 20,
+  tela: {
+    flex: 1,
+    backgroundColor: CORES.fundo,
   },
-  Titulo: { marginBottom: 50, fontSize: 40, fontWeight: "bold" },
-  Input: {
-    width: "100%", height: 50, borderRadius: 10, textAlign: "center",
-    borderColor: "black", borderWidth: 2, marginBottom: 10,
+  conteudo: {
+    flexGrow: 1,
   },
-  Botao_Login: {
-    backgroundColor: "blue", width: "100%", height: 45,
-    borderRadius: 10, justifyContent: "center", alignItems: "center", marginTop: 10,
+  container: {
+    flexGrow: 1,
+    minHeight: 650,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 30,
   },
-  Texto_Botao: { color: "white", fontWeight: "bold", fontSize: 18 },
-  Texto_Marcado: { color: "#0c9dc2", fontWeight: "bold", textAlign: "center", margin: 20 },
+  cartao: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: CORES.cartao,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    paddingHorizontal: 25,
+    paddingVertical: 28,
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  logo: {
+    width: 180,
+    height: 145,
+  },
+  titulo: {
+    color: CORES.texto,
+    fontSize: 27,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  descricao: {
+    color: CORES.textoSecundario,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 9,
+    marginBottom: 30,
+  },
+  formulario: {
+    width: "100%",
+  },
+  label: {
+    color: CORES.texto,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 8,
+    marginTop: 5,
+  },
+  input: {
+    width: "100%",
+    height: 52,
+    backgroundColor: CORES.campo,
+    borderColor: CORES.borda,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    color: CORES.texto,
+    fontSize: 15,
+    marginBottom: 17,
+  },
+  senhaContainer: {
+    width: "100%",
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: CORES.campo,
+    borderColor: CORES.borda,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 14,
+  },
+  inputSenha: {
+    flex: 1,
+    height: 50,
+    paddingHorizontal: 15,
+    color: CORES.texto,
+    fontSize: 15,
+  },
+  botaoMostrar: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  textoMostrar: {
+    color: CORES.laranja,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  lembrarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginBottom: 20,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 19,
+    height: 19,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: CORES.borda,
+    backgroundColor: CORES.campo,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
+  },
+  checkboxAtivo: {
+    backgroundColor: CORES.vermelho,
+    borderColor: CORES.vermelho,
+  },
+  checkTexto: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 16,
+  },
+  lembrarTexto: {
+    color: CORES.textoSecundario,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  botaoLogin: {
+    width: "100%",
+    minHeight: 52,
+    backgroundColor: CORES.vermelho,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+    elevation: 3,
+  },
+  botaoDesabilitado: {
+    opacity: 0.7,
+  },
+  carregandoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  textoBotao: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  divisorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 27,
+    marginBottom: 22,
+  },
+  divisor: {
+    flex: 1,
+    height: 1,
+    backgroundColor: CORES.borda,
+  },
+  textoDivisor: {
+    color: CORES.textoSecundario,
+    fontSize: 11,
+    fontWeight: "700",
+    marginHorizontal: 12,
+  },
+  botaoCadastro: {
+    width: "100%",
+    minHeight: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CORES.laranja,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  textoCadastro: {
+    color: CORES.laranja,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  rodape: {
+    color: "#656579",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 4,
+    marginTop: 24,
+  },
 });
 
 const modalStyles = StyleSheet.create({
-  fundo: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
-  caixa: { width: 300, backgroundColor: "white", padding: 20, borderRadius: 10, alignItems: "center" },
-  botaoFechar: {
-    backgroundColor: "red", color: "white", padding: 10,
-    borderRadius: 10, width: 100, textAlign: "center",
+  fundo: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 22,
+  },
+  caixa: {
+    width: "100%",
+    maxWidth: 350,
+    backgroundColor: CORES.cartao,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    padding: 25,
+    alignItems: "center",
+  },
+  iconeErro: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#3B1926",
+    borderWidth: 1,
+    borderColor: CORES.vermelho,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 17,
+  },
+  exclamacao: {
+    color: CORES.vermelho,
+    fontSize: 27,
+    fontWeight: "800",
+  },
+  titulo: {
+    color: CORES.texto,
+    fontSize: 19,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  mensagem: {
+    color: CORES.textoSecundario,
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 23,
+  },
+  botao: {
+    width: "100%",
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: CORES.vermelho,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  textoBotao: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

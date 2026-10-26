@@ -1,4 +1,7 @@
+
 import {
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -8,7 +11,7 @@ import {
   TouchableOpacity,
   Text,
   Modal,
-  ActivityIndicator,
+  StatusBar,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
@@ -31,9 +34,21 @@ type RootStackParamList = {
   };
 };
 
-type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProps =
+  NativeStackNavigationProp<RootStackParamList>;
 
 const API_URL = "https://paginariumapi.onrender.com";
+
+const CORES = {
+  fundo: "#10101C",
+  cartao: "#191927",
+  campo: "#222231",
+  borda: "#373747",
+  vermelho: "#FF2638",
+  laranja: "#FF8A24",
+  texto: "#FFFFFF",
+  textoSecundario: "#A5A5B8",
+};
 
 function interpretarResposta(texto: string): any {
   if (!texto) return {};
@@ -46,18 +61,13 @@ function interpretarResposta(texto: string): any {
 }
 
 function mensagemDaResposta(data: any, fallback: string): string {
-  if (typeof data === "string" && data.trim()) {
-    return data;
-  }
-
+  if (typeof data === "string" && data.trim()) return data;
   if (typeof data?.message === "string" && data.message.trim()) {
     return data.message;
   }
-
   if (typeof data?.mensagem === "string" && data.mensagem.trim()) {
     return data.mensagem;
   }
-
   if (typeof data?.erro === "string" && data.erro.trim()) {
     return data.erro;
   }
@@ -70,34 +80,40 @@ export default function Cadastro() {
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [confirmar_email, setConfirmar_Email] = useState("");
+  const [confirmarEmail, setConfirmarEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmar_senha, setConfirmar_Senha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
 
   const [erro, setErro] = useState("");
   const [janelaModal, setModal] = useState(false);
   const [cadastrando, setCadastrando] = useState(false);
+  const [mostrarSenhas, setMostrarSenhas] = useState(false);
 
   function mostrarErro(mensagem: string) {
     setErro(mensagem);
     setModal(true);
   }
 
-  async function cadastro() {
+  async function cadastro(): Promise<void> {
     if (cadastrando) return;
 
     const nomeLimpo = nome.trim();
     const emailLimpo = email.trim().toLowerCase();
-    const emailConfirmado = confirmar_email.trim().toLowerCase();
+    const emailConfirmado = confirmarEmail.trim().toLowerCase();
 
     if (
       !nomeLimpo ||
       !emailLimpo ||
       !emailConfirmado ||
       !senha ||
-      !confirmar_senha
+      !confirmarSenha
     ) {
-      mostrarErro("Não pode deixar campos vazios.");
+      mostrarErro("Preencha todos os campos.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) {
+      mostrarErro("Digite um endereço de e-mail válido.");
       return;
     }
 
@@ -106,8 +122,13 @@ export default function Cadastro() {
       return;
     }
 
-    if (senha !== confirmar_senha) {
+    if (senha !== confirmarSenha) {
       mostrarErro("As senhas não coincidem.");
+      return;
+    }
+
+    if (senha.length < 6) {
+      mostrarErro("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
@@ -129,7 +150,6 @@ export default function Cadastro() {
       const responseText = await response.text();
       const data = interpretarResposta(responseText);
 
-      // Verifica primeiro o status HTTP.
       if (!response.ok) {
         mostrarErro(
           mensagemDaResposta(
@@ -140,7 +160,7 @@ export default function Cadastro() {
         return;
       }
 
-      // O cadastro foi concluído. Agora tentamos fazer login.
+      // Cadastro concluído: tenta entrar automaticamente.
       let loginRes: Response;
 
       try {
@@ -156,7 +176,7 @@ export default function Cadastro() {
         });
       } catch {
         mostrarErro(
-          "Cadastro concluído, mas não foi possível entrar automaticamente. Feche esta mensagem e entre pela tela de Login."
+          "Cadastro concluído, mas não foi possível entrar automaticamente. Acesse a tela de Login e entre com sua conta."
         );
         return;
       }
@@ -170,13 +190,12 @@ export default function Cadastro() {
         !loginData?.usuario
       ) {
         mostrarErro(
-          "Cadastro concluído, mas o login automático não funcionou. Feche esta mensagem e entre pela tela de Login."
+          "Sua conta foi cadastrada, mas o login automático não funcionou. Entre pela tela de Login."
         );
         return;
       }
 
       await AsyncStorage.setItem("token", loginData.token);
-
       await AsyncStorage.setItem(
         "usuario",
         JSON.stringify(loginData.usuario)
@@ -190,7 +209,7 @@ export default function Cadastro() {
       console.log("ERRO NO CADASTRO:", error);
 
       mostrarErro(
-        "Não foi possível comunicar com o servidor. Se o cadastro já apareceu no banco, tente fazer login em vez de cadastrar novamente."
+        "Não foi possível confirmar a resposta do servidor. Se a conta já tiver sido criada, tente entrar pela tela de Login em vez de cadastrá-la novamente."
       );
     } finally {
       setCadastrando(false);
@@ -199,30 +218,55 @@ export default function Cadastro() {
 
   return (
     <>
+      <StatusBar
+        backgroundColor={CORES.fundo}
+        barStyle="light-content"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        style={styles.tela}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={styles.conteudo}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ flex: 1, backgroundColor: "#e9eaecde" }}>
-            <View style={styles.container}>
-              <View style={styles.card}>
-                <Text style={styles.title}>Cadastro</Text>
+          <View style={styles.container}>
+            <View style={styles.card}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require("../assets/Paginarium_icon.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <Text style={styles.title}>Crie sua conta</Text>
+
+              <Text style={styles.description}>
+                Preencha os campos para começar.
+              </Text>
+
+              <View style={styles.formulario}>
+                <Text style={styles.label}>Nome completo</Text>
 
                 <TextInput
-                  placeholder="Nome"
+                  placeholder="Digite seu nome"
+                  placeholderTextColor={CORES.textoSecundario}
                   style={styles.input}
                   value={nome}
                   onChangeText={setNome}
                   autoCapitalize="words"
+                  autoCorrect={false}
                   editable={!cadastrando}
+                  returnKeyType="next"
                 />
 
+                <Text style={styles.label}>E-mail</Text>
+
                 <TextInput
-                  placeholder="Email"
+                  placeholder="Digite seu e-mail"
+                  placeholderTextColor={CORES.textoSecundario}
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
@@ -230,60 +274,106 @@ export default function Cadastro() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!cadastrando}
+                  returnKeyType="next"
                 />
 
+                <Text style={styles.label}>Confirmar e-mail</Text>
+
                 <TextInput
-                  placeholder="Confirmar Email"
+                  placeholder="Digite seu e-mail novamente"
+                  placeholderTextColor={CORES.textoSecundario}
                   style={styles.input}
-                  value={confirmar_email}
-                  onChangeText={setConfirmar_Email}
+                  value={confirmarEmail}
+                  onChangeText={setConfirmarEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!cadastrando}
+                  returnKeyType="next"
                 />
 
+                <Text style={styles.label}>Senha</Text>
+
                 <TextInput
-                  placeholder="Senha"
-                  secureTextEntry
+                  placeholder="Crie uma senha"
+                  placeholderTextColor={CORES.textoSecundario}
                   style={styles.input}
                   value={senha}
                   onChangeText={setSenha}
+                  secureTextEntry={!mostrarSenhas}
+                  autoCapitalize="none"
                   editable={!cadastrando}
+                  returnKeyType="next"
                 />
 
+                <Text style={styles.label}>Confirmar senha</Text>
+
                 <TextInput
-                  placeholder="Confirmar Senha"
-                  secureTextEntry
+                  placeholder="Digite a senha novamente"
+                  placeholderTextColor={CORES.textoSecundario}
                   style={styles.input}
-                  value={confirmar_senha}
-                  onChangeText={setConfirmar_Senha}
+                  value={confirmarSenha}
+                  onChangeText={setConfirmarSenha}
+                  secureTextEntry={!mostrarSenhas}
+                  autoCapitalize="none"
                   editable={!cadastrando}
+                  returnKeyType="done"
+                  onSubmitEditing={cadastro}
                 />
+
+                <TouchableOpacity
+                  style={styles.mostrarContainer}
+                  onPress={() => setMostrarSenhas(!mostrarSenhas)}
+                  disabled={cadastrando}
+                >
+                  <Text style={styles.mostrarTexto}>
+                    {mostrarSenhas ? "Ocultar senhas" : "Mostrar senhas"}
+                  </Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={cadastro}
                   style={[
                     styles.button,
-                    cadastrando && { opacity: 0.7 },
+                    cadastrando && styles.buttonDesabilitado,
                   ]}
                   disabled={cadastrando}
+                  activeOpacity={0.8}
                 >
                   {cadastrando ? (
-                    <ActivityIndicator color="white" />
+                    <View style={styles.carregandoContainer}>
+                      <ActivityIndicator color="#FFFFFF" />
+                      <Text style={styles.buttonText}>
+                        Cadastrando...
+                      </Text>
+                    </View>
                   ) : (
-                    <Text style={styles.buttonText}>Cadastrar</Text>
+                    <Text style={styles.buttonText}>
+                      Criar minha conta
+                    </Text>
                   )}
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("Login")}
-                  disabled={cadastrando}
-                >
-                  <Text style={styles.link}>Fazer Login</Text>
-                </TouchableOpacity>
               </View>
+
+              <View style={styles.divisorContainer}>
+                <View style={styles.divisor} />
+                <Text style={styles.divisorTexto}>OU</Text>
+                <View style={styles.divisor} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.botaoLogin}
+                onPress={() => navigation.navigate("Login")}
+                disabled={cadastrando}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.botaoLoginTexto}>
+                  Já tenho uma conta
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            <Text style={styles.rodape}>PAGINARIUM</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -296,18 +386,24 @@ export default function Cadastro() {
       >
         <View style={modal.fundo}>
           <View style={modal.caixa}>
-            <Text
-              style={{
-                color: "#222",
-                marginBottom: 20,
-                textAlign: "center",
-              }}
-            >
+            <View style={modal.icone}>
+              <Text style={modal.exclamacao}>!</Text>
+            </View>
+
+            <Text style={modal.titulo}>
+              Atenção
+            </Text>
+
+            <Text style={modal.mensagem}>
               {erro}
             </Text>
 
-            <TouchableOpacity onPress={() => setModal(false)}>
-              <Text style={modal.botao}>Fechar</Text>
+            <TouchableOpacity
+              onPress={() => setModal(false)}
+              style={modal.botao}
+              activeOpacity={0.8}
+            >
+              <Text style={modal.botaoTexto}>Entendi</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -317,87 +413,234 @@ export default function Cadastro() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  tela: {
     flex: 1,
-    alignItems: "center",
+    backgroundColor: CORES.fundo,
+  },
+
+  conteudo: {
+    flexGrow: 1,
+  },
+
+  container: {
+    flexGrow: 1,
     justifyContent: "center",
-    padding: 12,
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 25,
   },
 
   card: {
     width: "100%",
-    maxWidth: 600,
-    minHeight: 500,
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 20,
+    maxWidth: 440,
+    backgroundColor: CORES.cartao,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    paddingHorizontal: 23,
+    paddingVertical: 25,
+  },
+
+  logoContainer: {
     alignItems: "center",
+    marginBottom: 8,
+  },
+
+  logo: {
+    width: 150,
+    height: 115,
   },
 
   title: {
-    marginBottom: 35,
-    marginTop: 30,
-    fontSize: 40,
-    fontWeight: "bold",
+    color: CORES.texto,
+    fontSize: 27,
+    fontWeight: "800",
+    textAlign: "center",
+    marginTop: 5,
+  },
+
+  description: {
+    color: CORES.textoSecundario,
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 25,
+  },
+
+  formulario: {
+    width: "100%",
+  },
+
+  label: {
+    color: CORES.texto,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 7,
+    marginTop: 3,
   },
 
   input: {
     width: "100%",
-    height: 50,
-    borderRadius: 10,
-    textAlign: "center",
-    borderColor: "black",
-    borderWidth: 2,
-    marginBottom: 10,
+    height: 49,
+    backgroundColor: CORES.campo,
+    borderColor: CORES.borda,
+    borderWidth: 1,
+    borderRadius: 11,
+    paddingHorizontal: 14,
+    color: CORES.texto,
+    fontSize: 14,
+    marginBottom: 13,
+  },
+
+  mostrarContainer: {
+    alignSelf: "flex-end",
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+
+  mostrarTexto: {
+    color: CORES.laranja,
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   button: {
-    backgroundColor: "blue",
     width: "100%",
-    minHeight: 45,
-    borderRadius: 10,
+    minHeight: 51,
+    backgroundColor: CORES.vermelho,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 5,
+    elevation: 3,
+  },
+
+  buttonDesabilitado: {
+    opacity: 0.7,
+  },
+
+  carregandoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
 
   buttonText: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 15,
   },
 
-  link: {
-    marginTop: 15,
-    color: "#0c9dc2",
-    fontWeight: "bold",
+  divisorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 23,
+    marginBottom: 19,
+  },
+
+  divisor: {
+    flex: 1,
+    height: 1,
+    backgroundColor: CORES.borda,
+  },
+
+  divisorTexto: {
+    color: CORES.textoSecundario,
+    fontSize: 10,
+    fontWeight: "700",
+    marginHorizontal: 12,
+  },
+
+  botaoLogin: {
+    width: "100%",
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CORES.laranja,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  botaoLoginTexto: {
+    color: CORES.laranja,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  rodape: {
+    color: "#656579",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 4,
+    marginTop: 22,
   },
 });
 
 const modal = StyleSheet.create({
   fundo: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: 22,
   },
 
   caixa: {
     width: "100%",
-    maxWidth: 340,
-    backgroundColor: "white",
-    padding: 20,
-    borderRadius: 10,
+    maxWidth: 350,
+    backgroundColor: CORES.cartao,
+    padding: 25,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: CORES.borda,
     alignItems: "center",
   },
 
-  botao: {
-    backgroundColor: "red",
-    color: "white",
-    padding: 10,
-    borderRadius: 10,
-    width: 100,
+  icone: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#3B1926",
+    borderWidth: 1,
+    borderColor: CORES.vermelho,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  exclamacao: {
+    color: CORES.vermelho,
+    fontSize: 26,
+    fontWeight: "800",
+  },
+
+  titulo: {
+    color: CORES.texto,
+    fontSize: 19,
+    fontWeight: "800",
+    marginBottom: 12,
+  },
+
+  mensagem: {
+    color: CORES.textoSecundario,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
+    marginBottom: 22,
+  },
+
+  botao: {
+    width: "100%",
+    minHeight: 48,
+    backgroundColor: CORES.vermelho,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  botaoTexto: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });
