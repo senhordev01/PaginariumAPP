@@ -4,6 +4,7 @@ import {
   View,
   Text,
   Alert,
+  Platform,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -34,6 +35,46 @@ import Logout from "../assets/Logout.png";
 
 const API = "https://paginariumapi.onrender.com";
 
+// Cabeçalho com o token do administrador (necessário para criar, editar e remover livros).
+async function cabecalhoAuth(): Promise<Record<string, string>> {
+  const token = await AsyncStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// A API responde com texto JSON ("mensagem") ou { erro: "..." }.
+function mensagemDe(texto: string, status: number): string {
+  try {
+    const d = JSON.parse(texto);
+    if (typeof d === "string" && d.trim()) return d;
+    const msg = d?.erro ?? d?.mensagem ?? d?.message;
+    if (typeof msg === "string" && msg.trim()) return msg;
+  } catch {
+    // resposta não era JSON
+  }
+  return `A API retornou o status ${status}.`;
+}
+
+// Anexa um arquivo ao FormData. Na web é preciso enviar um Blob de verdade;
+// no celular o React Native aceita { uri, name, type }.
+async function anexarArquivo(
+  formData: FormData,
+  campo: string,
+  arquivo: { uri: string; name?: string; type?: string },
+  nomePadrao: string,
+  tipoPadrao: string
+) {
+  const nome = arquivo.name ?? nomePadrao;
+  const tipo = arquivo.type ?? tipoPadrao;
+
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(arquivo.uri)).blob();
+    formData.append(campo, new Blob([blob], { type: tipo || blob.type }), nome);
+    return;
+  }
+
+  formData.append(campo, { uri: arquivo.uri, name: nome, type: tipo } as any);
+}
+
 interface Usuario {
   nome: string;
 }
@@ -50,13 +91,14 @@ interface Livro {
 type RootStackParamList = {
   Login: undefined;
   Cadastro: undefined;
-  Inicio: {
-    usuario: Usuario;
+  Inicio_Adm: {
+    usuario?: Usuario;
+    token?: string;
   };
 };
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
-type InicioRouteProp = RouteProp<RootStackParamList, "Inicio">;
+type InicioRouteProp = RouteProp<RootStackParamList, "Inicio_Adm">;
 
 export default function Inicio_Adm() {
   const { width } = useWindowDimensions();
@@ -102,6 +144,12 @@ export default function Inicio_Adm() {
 
     recuperarUsuario();
   }, []);
+
+  // Sair: limpa a sessão salva (senão o app reabre direto no painel do admin)
+  async function sair() {
+    await AsyncStorage.multiRemove(["token", "usuario"]);
+    navigation.navigate("Login");
+  }
 
   // Tema
   function Tema_Escuro() {
@@ -239,28 +287,13 @@ export default function Inicio_Adm() {
       formData.append("genero", genero.trim());
       formData.append("valor", String(valorNumerico));
 
-      // Enviar capa no formato esperado pelo React Native
+      // Anexar capa e PDF (funciona na web e no celular)
       if (capa) {
-        formData.append(
-          "capa",
-          {
-            uri: capa.uri,
-            name: capa.name ?? "capa.jpg",
-            type: capa.type ?? "image/jpeg",
-          } as any
-        );
+        await anexarArquivo(formData, "capa", capa, "capa.jpg", "image/jpeg");
       }
 
-      // Enviar PDF no formato esperado pelo React Native
       if (pdf) {
-        formData.append(
-          "pdf",
-          {
-            uri: pdf.uri,
-            name: pdf.name ?? "livro.pdf",
-            type: pdf.type ?? "application/pdf",
-          } as any
-        );
+        await anexarArquivo(formData, "pdf", pdf, "livro.pdf", "application/pdf");
       }
 
       let response: Response;
@@ -269,6 +302,7 @@ export default function Inicio_Adm() {
         // Atualizar livro
         response = await fetch(`${API}/livros/${editId}`, {
           method: "PUT",
+          headers: await cabecalhoAuth(),
           body: formData,
           cache: "no-store",
         });
@@ -276,6 +310,7 @@ export default function Inicio_Adm() {
         // Cadastrar novo livro
         response = await fetch(`${API}/livros`, {
           method: "POST",
+          headers: await cabecalhoAuth(),
           body: formData,
           cache: "no-store",
         });
@@ -283,13 +318,22 @@ export default function Inicio_Adm() {
 
       const texto = await response.text();
 
+      if (response.status === 401 || response.status === 403) {
+        Alert.alert(
+          "Sessão expirada",
+          "Faça login novamente como administrador."
+        );
+        await sair();
+        return;
+      }
+
       console.log("STATUS SALVAR:", response.status);
       console.log("RESPOSTA:", texto);
 
       if (!response.ok) {
         Alert.alert(
           "Não foi possível salvar",
-          `A API retornou o status ${response.status}.\n${texto}`
+          mensagemDe(texto, response.status)
         );
         return;
       }
@@ -340,10 +384,20 @@ export default function Inicio_Adm() {
             try {
               const response = await fetch(`${API}/livros/${id}`, {
                 method: "DELETE",
+                headers: await cabecalhoAuth(),
                 cache: "no-store",
               });
 
               const texto = await response.text();
+
+              if (response.status === 401 || response.status === 403) {
+                Alert.alert(
+                  "Sessão expirada",
+                  "Faça login novamente como administrador."
+                );
+                await sair();
+                return;
+              }
 
               console.log("STATUS DELETE:", response.status);
               console.log("RESPOSTA DELETE:", texto);
@@ -351,7 +405,7 @@ export default function Inicio_Adm() {
               if (!response.ok) {
                 Alert.alert(
                   "Não foi possível remover",
-                  `A API retornou o status ${response.status}.\n${texto}`
+                  mensagemDe(texto, response.status)
                 );
                 return;
               }
@@ -402,7 +456,7 @@ export default function Inicio_Adm() {
 
         <SafeAreaView style={styles.navbar}>
           <TouchableOpacity
-            onPress={() => navigation.navigate("Login")}
+            onPress={sair}
           >
             <Image source={Logout} style={styles.icon} />
           </TouchableOpacity>
@@ -511,7 +565,7 @@ export default function Inicio_Adm() {
                   color: tema === "#e9eaecde" ? "#333" : "white",
                 }}
               >
-                Valor: {item.valor} / Mês
+                Valor: R$ {Number(item.valor).toFixed(2).replace(".", ",")} / mês
               </Text>
 
               {/* BOTÕES */}

@@ -54,16 +54,11 @@ function resolverCapaUrl(capaUrl?: string): string | undefined {
     return undefined;
   }
 
-  if (
-    capaUrl.startsWith("http://") ||
-    capaUrl.startsWith("https://")
-  ) {
+  if (capaUrl.startsWith("http://") || capaUrl.startsWith("https://")) {
     return capaUrl;
   }
 
-  const caminho = capaUrl.startsWith("/")
-    ? capaUrl
-    : `/${capaUrl}`;
+  const caminho = capaUrl.startsWith("/") ? capaUrl : `/${capaUrl}`;
 
   return `${BASE}${caminho}`;
 }
@@ -103,13 +98,16 @@ type RootStackParamList = {
     usuario: Usuario;
     token: string;
   };
+
+  Perfil: {
+    usuario: Usuario;
+    token: string;
+  };
 };
 
-type NavigationProps =
-  NativeStackNavigationProp<RootStackParamList>;
+type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 
-type InicioRouteProp =
-  RouteProp<RootStackParamList, "Inicio">;
+type InicioRouteProp = RouteProp<RootStackParamList, "Inicio">;
 
 // =====================================================
 // COMPONENTE
@@ -156,11 +154,11 @@ export default function Inicio() {
 
   const [carregando, setCarregando] = useState(false);
 
-  const [livrosAlugadosIds, setLivrosAlugadosIds] =
-    useState<Set<number>>(new Set());
+  const [livrosAlugadosIds, setLivrosAlugadosIds] = useState<Set<number>>(
+    new Set()
+  );
 
-  const [livroSelecionado, setLivroSelecionado] =
-    useState<Livro | null>(null);
+  const [livroSelecionado, setLivroSelecionado] = useState<Livro | null>(null);
 
   const [inserir_valor, setInserirValor] = useState("");
 
@@ -199,6 +197,22 @@ export default function Inicio() {
   // ===================================================
 
   const { isInstallable, install } = usePWAInstall();
+
+  // ===================================================
+  // NAVEGAÇÃO ENTRE TELAS
+  // ===================================================
+
+  function irMeusLivros() {
+    if (usuario && token) {
+      navigation.navigate("LivrosAlugados", { usuario, token });
+    }
+  }
+
+  function irPerfil() {
+    if (usuario && token) {
+      navigation.navigate("Perfil", { usuario, token });
+    }
+  }
 
   // ===================================================
   // LOGOUT
@@ -251,10 +265,7 @@ export default function Inicio() {
   // FETCH SEM CACHE
   // ===================================================
 
-  async function fetchSemCache(
-    url: string,
-    options: RequestInit = {}
-  ) {
+  async function fetchSemCache(url: string, options: RequestInit = {}) {
     const separador = url.includes("?") ? "&" : "?";
 
     const urlAtualizada = `${url}${separador}_=${Date.now()}`;
@@ -279,15 +290,12 @@ export default function Inicio() {
     usuarioId: number
   ): Promise<Usuario | null> {
     try {
-      const res = await fetchSemCache(
-        `${BASE}/usuarios/${usuarioId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${tkn}`,
-          },
-        }
-      );
+      const res = await fetchSemCache(`${BASE}/usuarios/${usuarioId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${tkn}`,
+        },
+      });
 
       if (res.status === 401 || res.status === 403) {
         await handleUnauthorized();
@@ -295,10 +303,7 @@ export default function Inicio() {
       }
 
       if (!res.ok) {
-        console.log(
-          "❌ Erro ao buscar usuário:",
-          res.status
-        );
+        console.log("❌ Erro ao buscar usuário:", res.status);
 
         return null;
       }
@@ -337,10 +342,7 @@ export default function Inicio() {
       }
 
       if (!res.ok) {
-        console.log(
-          "❌ Erro ao buscar aluguéis:",
-          res.status
-        );
+        console.log("❌ Erro ao buscar aluguéis:", res.status);
 
         return;
       }
@@ -360,10 +362,7 @@ export default function Inicio() {
               return false;
             }
 
-            return (
-              String(aluguel.data_fim).substring(0, 10) >=
-              hoje
-            );
+            return String(aluguel.data_fim).substring(0, 10) >= hoje;
           })
           .map((aluguel: any) => Number(aluguel.livro_id))
       );
@@ -385,10 +384,7 @@ export default function Inicio() {
       });
 
       if (!res.ok) {
-        console.log(
-          "❌ Erro ao carregar livros:",
-          res.status
-        );
+        console.log("❌ Erro ao carregar livros:", res.status);
 
         return;
       }
@@ -458,8 +454,7 @@ export default function Inicio() {
       try {
         const tokenSalvo = await AsyncStorage.getItem("token");
 
-        const usuarioSalvo =
-          await AsyncStorage.getItem("usuario");
+        const usuarioSalvo = await AsyncStorage.getItem("usuario");
 
         const tokenAtual = token ?? tokenSalvo;
 
@@ -532,11 +527,9 @@ export default function Inicio() {
 
       async function atualizarAoVoltar() {
         try {
-          const tokenSalvo =
-            await AsyncStorage.getItem("token");
+          const tokenSalvo = await AsyncStorage.getItem("token");
 
-          const usuarioSalvo =
-            await AsyncStorage.getItem("usuario");
+          const usuarioSalvo = await AsyncStorage.getItem("usuario");
 
           if (!tokenSalvo || !usuarioSalvo) {
             return;
@@ -561,15 +554,9 @@ export default function Inicio() {
 
           // Retoma automaticamente um aluguel que tenha
           // ficado pendente por falta de internet.
-          await processarAluguelPendente(
-            tokenSalvo,
-            false
-          );
+          await processarAluguelPendente(tokenSalvo, false);
 
-          await sincronizarDados(
-            tokenSalvo,
-            usuarioStorage
-          );
+          await sincronizarDados(tokenSalvo, usuarioStorage);
 
           if (cancelado) {
             return;
@@ -635,10 +622,7 @@ export default function Inicio() {
 
   const processandoAluguelPendente = useRef(false);
 
-  async function salvarAluguelPendente(
-    livroId: number,
-    mesesAluguel: number
-  ) {
+  async function salvarAluguelPendente(livroId: number, mesesAluguel: number) {
     await AsyncStorage.setItem(
       ALUGUEL_PENDENTE_KEY,
       JSON.stringify({
@@ -670,10 +654,7 @@ export default function Inicio() {
         credito: Number(data.novo_credito),
       };
 
-      AsyncStorage.setItem(
-        "usuario",
-        JSON.stringify(atualizado)
-      );
+      AsyncStorage.setItem("usuario", JSON.stringify(atualizado));
 
       return atualizado;
     });
@@ -704,9 +685,7 @@ export default function Inicio() {
       return;
     }
 
-    const pendenteSalvo = await AsyncStorage.getItem(
-      ALUGUEL_PENDENTE_KEY
-    );
+    const pendenteSalvo = await AsyncStorage.getItem(ALUGUEL_PENDENTE_KEY);
 
     if (!pendenteSalvo) {
       return;
@@ -727,11 +706,7 @@ export default function Inicio() {
       return;
     }
 
-    if (
-      !pendente?.livro_id ||
-      !pendente?.meses ||
-      pendente.meses <= 0
-    ) {
+    if (!pendente?.livro_id || !pendente?.meses || pendente.meses <= 0) {
       await limparAluguelPendente();
       return;
     }
@@ -822,9 +797,7 @@ export default function Inicio() {
           if (mostrarSucesso) {
             Alert.alert(
               "Erro",
-              typeof data === "string"
-                ? data
-                : "Erro ao alugar"
+              typeof data === "string" ? data : "Erro ao alugar"
             );
           }
 
@@ -832,14 +805,9 @@ export default function Inicio() {
         } catch (erro) {
           // Sem internet: mantém a pendência e continua
           // tentando até a conexão voltar.
-          console.log(
-            "🌐 Sem conexão. Aluguel aguardando rede...",
-            erro
-          );
+          console.log("🌐 Sem conexão. Aluguel aguardando rede...", erro);
 
-          await new Promise((resolver) =>
-            setTimeout(resolver, 3000)
-          );
+          await new Promise((resolver) => setTimeout(resolver, 3000));
         }
       }
     } finally {
@@ -874,10 +842,7 @@ export default function Inicio() {
 
     // Salva antes de tentar a API. Se a internet cair ou
     // o aplicativo for fechado, a solicitação não é perdida.
-    await salvarAluguelPendente(
-      livroId,
-      mesesAluguel
-    );
+    await salvarAluguelPendente(livroId, mesesAluguel);
 
     await processarAluguelPendente(token, true);
   }
@@ -886,8 +851,7 @@ export default function Inicio() {
   // INTERFACE — DASHBOARD PAGINARIUM
   // ===================================================
 
-  const livroDestaque =
-    livrosFiltrados[0] ?? livros[0];
+  const livroDestaque = livrosFiltrados[0] ?? livros[0];
 
   const renderCardLivro = ({ item }: { item: Livro }) => {
     const jaAlugado = livrosAlugadosIds.has(item.id);
@@ -904,9 +868,7 @@ export default function Inicio() {
       >
         <Image
           source={
-            item.capa_url
-              ? { uri: resolverCapaUrl(item.capa_url) }
-              : undefined
+            item.capa_url ? { uri: resolverCapaUrl(item.capa_url) } : undefined
           }
           resizeMode="cover"
           style={styles.bookCover}
@@ -915,30 +877,19 @@ export default function Inicio() {
         <View style={styles.bookInfo}>
           <Text
             numberOfLines={2}
-            style={[
-              styles.bookTitle,
-              { color: cores.texto },
-            ]}
+            style={[styles.bookTitle, { color: cores.texto }]}
           >
             {item.nome}
           </Text>
 
           <Text
             numberOfLines={1}
-            style={[
-              styles.bookGenre,
-              { color: cores.secundario },
-            ]}
+            style={[styles.bookGenre, { color: cores.secundario }]}
           >
             {item.genero || "Literatura"}
           </Text>
 
-          <Text
-            style={[
-              styles.bookPrice,
-              { color: cores.laranja },
-            ]}
-          >
+          <Text style={[styles.bookPrice, { color: cores.laranja }]}>
             R$ {Number(item.valor).toFixed(2)} / mês
           </Text>
 
@@ -951,9 +902,7 @@ export default function Inicio() {
             style={[
               styles.rentButton,
               {
-                backgroundColor: jaAlugado
-                  ? "#596274"
-                  : cores.vermelho,
+                backgroundColor: jaAlugado ? "#596274" : cores.vermelho,
               },
             ]}
           >
@@ -997,46 +946,44 @@ export default function Inicio() {
                 resizeMode="contain"
               />
 
-              <Text
-                style={[
-                  styles.brandName,
-                  { color: cores.texto },
-                ]}
-              >
+              <Text style={[styles.brandName, { color: cores.texto }]}>
                 PAGINARIUM
               </Text>
             </View>
 
-
             {[
               {
+                label: "Início",
+                action: () => {},
+                active: true,
+              },
+              {
                 label: "Meus Livros",
-                action: () =>
-                  usuario &&
-                  token &&
-                  navigation.navigate(
-                    "LivrosAlugados",
-                    { usuario, token }
-                  ),
+                action: irMeusLivros,
+                active: false,
               },
               {
                 label: "Perfil",
-                action: () =>
-                  Alert.alert(
-                    "Perfil",
-                    "A tela de perfil ainda não está conectada."
-                  ),
+                action: irPerfil,
+                active: false,
               },
             ].map((item) => (
               <TouchableOpacity
                 key={item.label}
-                style={styles.navItem}
+                style={[
+                  styles.navItem,
+                  item.active && {
+                    backgroundColor: isDark ? "#17243B" : "#EEF1F8",
+                  },
+                ]}
                 onPress={item.action}
               >
                 <Text
                   style={[
                     styles.navLabel,
-                    { color: cores.secundario },
+                    {
+                      color: item.active ? cores.laranja : cores.secundario,
+                    },
                   ]}
                 >
                   {item.label}
@@ -1047,21 +994,11 @@ export default function Inicio() {
             <View style={styles.sidebarFooter}>
               <Text style={styles.sidebarBook}>📕</Text>
 
-              <Text
-                style={[
-                  styles.sidebarMotto,
-                  { color: cores.secundario },
-                ]}
-              >
+              <Text style={[styles.sidebarMotto, { color: cores.secundario }]}>
                 GRANDES HISTÓRIAS
               </Text>
 
-              <Text
-                style={[
-                  styles.sidebarMotto,
-                  { color: cores.secundario },
-                ]}
-              >
+              <Text style={[styles.sidebarMotto, { color: cores.secundario }]}>
                 COMEÇAM AQUI.
               </Text>
             </View>
@@ -1093,49 +1030,24 @@ export default function Inicio() {
             ) : null}
 
             <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.greeting,
-                  { color: cores.texto },
-                ]}
-              >
+              <Text style={[styles.greeting, { color: cores.texto }]}>
                 Olá, {usuario?.nome ?? "Usuário"}
               </Text>
 
-              <Text
-                style={[
-                  styles.greetingSub,
-                  { color: cores.secundario },
-                ]}
-              >
+              <Text style={[styles.greetingSub, { color: cores.secundario }]}>
                 Que bom ter você por aqui!
               </Text>
             </View>
 
-            <View
-              style={[
-                styles.creditPill,
-                { borderColor: cores.borda },
-              ]}
-            >
+            <View style={[styles.creditPill, { borderColor: cores.borda }]}>
               <Text style={{ fontSize: 18 }}>▣</Text>
 
               <View>
-                <Text
-                  style={[
-                    styles.creditLabel,
-                    { color: cores.secundario },
-                  ]}
-                >
+                <Text style={[styles.creditLabel, { color: cores.secundario }]}>
                   Créditos
                 </Text>
 
-                <Text
-                  style={[
-                    styles.creditValue,
-                    { color: cores.laranja },
-                  ]}
-                >
+                <Text style={[styles.creditValue, { color: cores.laranja }]}>
                   R$ {Number(usuario?.credito ?? 0).toFixed(2)}
                 </Text>
               </View>
@@ -1143,38 +1055,22 @@ export default function Inicio() {
 
             <TouchableOpacity
               onPress={() =>
-                setTema((atual) =>
-                  atual === "dark" ? "light" : "dark"
-                )
+                setTema((atual) => (atual === "dark" ? "light" : "dark"))
               }
               accessibilityRole="button"
               accessibilityLabel={
-                isDark
-                  ? "Ativar tema claro"
-                  : "Ativar tema escuro"
+                isDark ? "Ativar tema claro" : "Ativar tema escuro"
               }
-              style={[
-                styles.themeButton,
-                { borderColor: cores.borda },
-              ]}
+              style={[styles.themeButton, { borderColor: cores.borda }]}
             >
-              <Image
-                source={isDark ? Sol : Lua}
-                style={styles.headerIcon}
-              />
+              <Image source={isDark ? Sol : Lua} style={styles.headerIcon} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={logout}
-              style={[
-                styles.logoutButton,
-                { borderColor: cores.vermelho },
-              ]}
+              style={[styles.logoutButton, { borderColor: cores.vermelho }]}
             >
-              <Image
-                source={Logout}
-                style={styles.logoutIcon}
-              />
+              <Image source={Logout} style={styles.logoutIcon} />
 
               {!Mobile && (
                 <Text
@@ -1211,10 +1107,7 @@ export default function Inicio() {
             >
               <Image
                 source={Lupa}
-                style={[
-                  styles.searchIcon,
-                  { tintColor: cores.secundario },
-                ]}
+                style={[styles.searchIcon, { tintColor: cores.secundario }]}
               />
 
               <TextInput
@@ -1225,23 +1118,14 @@ export default function Inicio() {
                 placeholder="Digite o nome do livro ou gênero..."
                 placeholderTextColor={cores.secundario}
                 underlineColorAndroid="transparent"
-                style={[
-                  styles.searchInput,
-                  { color: cores.texto },
-                ]}
+                style={[styles.searchInput, { color: cores.texto }]}
               />
 
               <TouchableOpacity
                 onPress={pesquisar}
-                style={[
-                  styles.searchSubmit,
-                  { backgroundColor: cores.laranja },
-                ]}
+                style={[styles.searchSubmit, { backgroundColor: cores.laranja }]}
               >
-                <Image
-                  source={Lupa}
-                  style={styles.searchSubmitIcon}
-                />
+                <Image source={Lupa} style={styles.searchSubmitIcon} />
               </TouchableOpacity>
             </View>
 
@@ -1258,9 +1142,7 @@ export default function Inicio() {
               {livroDestaque?.capa_url ? (
                 <Image
                   source={{
-                    uri: resolverCapaUrl(
-                      livroDestaque.capa_url
-                    ),
+                    uri: resolverCapaUrl(livroDestaque.capa_url),
                   }}
                   style={styles.heroImage}
                   resizeMode="cover"
@@ -1277,37 +1159,24 @@ export default function Inicio() {
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.heroEyebrow,
-                    { color: cores.laranja },
-                  ]}
-                >
+                <Text style={[styles.heroEyebrow, { color: cores.laranja }]}>
                   DESTAQUE  ━━━
                 </Text>
 
                 <Text
                   numberOfLines={2}
-                  style={[
-                    styles.heroTitle,
-                    { color: cores.texto },
-                  ]}
+                  style={[styles.heroTitle, { color: cores.texto }]}
                 >
-                  {livroDestaque?.nome ??
-                    "Descubra sua próxima leitura"}
+                  {livroDestaque?.nome ?? "Descubra sua próxima leitura"}
                 </Text>
 
                 <Text
                   numberOfLines={2}
-                  style={[
-                    styles.heroDescription,
-                    { color: cores.secundario },
-                  ]}
+                  style={[styles.heroDescription, { color: cores.secundario }]}
                 >
                   {livroDestaque
                     ? `${
-                        livroDestaque.genero ||
-                        "Uma grande história"
+                        livroDestaque.genero || "Uma grande história"
                       } esperando por você.`
                     : "Explore o catálogo e encontre uma nova história."}
                 </Text>
@@ -1318,16 +1187,10 @@ export default function Inicio() {
                       setInserirValor("");
                       setLivroSelecionado(livroDestaque);
                     }}
-                    style={[
-                      styles.heroButton,
-                      { borderColor: cores.laranja },
-                    ]}
+                    style={[styles.heroButton, { borderColor: cores.laranja }]}
                   >
                     <Text
-                      style={[
-                        styles.heroButtonText,
-                        { color: cores.laranja },
-                      ]}
+                      style={[styles.heroButtonText, { color: cores.laranja }]}
                     >
                       VER DETALHES  ›
                     </Text>
@@ -1340,30 +1203,15 @@ export default function Inicio() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionEmoji}>🔥</Text>
 
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: cores.texto },
-                ]}
-              >
-                {termoPesquisado
-                  ? "Resultados da pesquisa"
-                  : "Mais Lidos"}
+              <Text style={[styles.sectionTitle, { color: cores.texto }]}>
+                {termoPesquisado ? "Resultados da pesquisa" : "Mais Lidos"}
               </Text>
 
               <View
-                style={[
-                  styles.sectionLine,
-                  { backgroundColor: cores.vermelho },
-                ]}
+                style={[styles.sectionLine, { backgroundColor: cores.vermelho }]}
               />
 
-              <Text
-                style={[
-                  styles.resultCount,
-                  { color: cores.laranja },
-                ]}
-              >
+              <Text style={[styles.resultCount, { color: cores.laranja }]}>
                 {livrosFiltrados.length} livros
               </Text>
             </View>
@@ -1380,9 +1228,7 @@ export default function Inicio() {
                   paddingBottom: 8,
                   paddingRight: 8,
                 }}
-                ItemSeparatorComponent={() => (
-                  <View style={{ width: 14 }} />
-                )}
+                ItemSeparatorComponent={() => <View style={{ width: 14 }} />}
               />
             ) : (
               <View
@@ -1400,8 +1246,7 @@ export default function Inicio() {
                     textAlign: "center",
                   }}
                 >
-                  Nenhum livro encontrado para “
-                  {termoPesquisado}”.
+                  Nenhum livro encontrado para “{termoPesquisado}”.
                 </Text>
 
                 <TouchableOpacity
@@ -1418,10 +1263,7 @@ export default function Inicio() {
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.heroButtonText,
-                      { color: cores.laranja },
-                    ]}
+                    style={[styles.heroButtonText, { color: cores.laranja }]}
                   >
                     LIMPAR PESQUISA
                   </Text>
@@ -1430,28 +1272,15 @@ export default function Inicio() {
             )}
 
             {/* RECOMENDADOS / ALUGUEL ATUAL */}
-            <View
-              style={[
-                styles.sectionHeader,
-                { marginTop: 24 },
-              ]}
-            >
+            <View style={[styles.sectionHeader, { marginTop: 24 }]}>
               <Text style={styles.sectionEmoji}>⭐</Text>
 
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: cores.texto },
-                ]}
-              >
+              <Text style={[styles.sectionTitle, { color: cores.texto }]}>
                 Recomendados para você
               </Text>
 
               <View
-                style={[
-                  styles.sectionLine,
-                  { backgroundColor: cores.vermelho },
-                ]}
+                style={[styles.sectionLine, { backgroundColor: cores.vermelho }]}
               />
             </View>
 
@@ -1465,17 +1294,12 @@ export default function Inicio() {
               ]}
             >
               <View
-                style={[
-                  styles.recommendCoverFrame,
-                  { borderColor: cores.borda },
-                ]}
+                style={[styles.recommendCoverFrame, { borderColor: cores.borda }]}
               >
                 {livroDestaque?.capa_url ? (
                   <Image
                     source={{
-                      uri: resolverCapaUrl(
-                        livroDestaque.capa_url
-                      ),
+                      uri: resolverCapaUrl(livroDestaque.capa_url),
                     }}
                     style={styles.recommendCover}
                     resizeMode="cover"
@@ -1488,34 +1312,18 @@ export default function Inicio() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
                   numberOfLines={2}
-                  style={[
-                    styles.recommendTitle,
-                    { color: cores.texto },
-                  ]}
+                  style={[styles.recommendTitle, { color: cores.texto }]}
                 >
-                  {livroDestaque?.nome ??
-                    "Seu próximo livro favorito"}
+                  {livroDestaque?.nome ?? "Seu próximo livro favorito"}
                 </Text>
 
-                <Text
-                  style={[
-                    styles.bookGenre,
-                    { color: cores.secundario },
-                  ]}
-                >
-                  {livroDestaque?.genero ??
-                    "Explore o catálogo do Paginarium"}
+                <Text style={[styles.bookGenre, { color: cores.secundario }]}>
+                  {livroDestaque?.genero ?? "Explore o catálogo do Paginarium"}
                 </Text>
 
                 {livroDestaque && (
-                  <Text
-                    style={[
-                      styles.bookPrice,
-                      { color: cores.laranja },
-                    ]}
-                  >
-                    Valor: R${" "}
-                    {Number(livroDestaque.valor).toFixed(2)} / mês
+                  <Text style={[styles.bookPrice, { color: cores.laranja }]}>
+                    Valor: R$ {Number(livroDestaque.valor).toFixed(2)} / mês
                   </Text>
                 )}
 
@@ -1530,9 +1338,7 @@ export default function Inicio() {
                       { backgroundColor: cores.vermelho },
                     ]}
                   >
-                    <Text style={styles.rentButtonText}>
-                      Alugar livro
-                    </Text>
+                    <Text style={styles.rentButtonText}>Alugar livro</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1546,9 +1352,7 @@ export default function Inicio() {
         visible={livroSelecionado !== null}
         transparent
         animationType="fade"
-        onRequestClose={() =>
-          !carregando && setLivroSelecionado(null)
-        }
+        onRequestClose={() => !carregando && setLivroSelecionado(null)}
       >
         <View style={styles.modalBackdrop}>
           <View
@@ -1565,18 +1369,10 @@ export default function Inicio() {
               onPress={() => setLivroSelecionado(null)}
               style={styles.modalClose}
             >
-              <Image
-                source={Fechar}
-                style={{ width: 22, height: 22 }}
-              />
+              <Image source={Fechar} style={{ width: 22, height: 22 }} />
             </TouchableOpacity>
 
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: cores.texto },
-              ]}
-            >
+            <Text style={[styles.modalTitle, { color: cores.texto }]}>
               {livroSelecionado?.nome}
             </Text>
 
@@ -1609,18 +1405,13 @@ export default function Inicio() {
               !isNaN(meses) &&
               meses > 0 && (
                 <Text
-                  style={[
-                    styles.calculationText,
-                    { color: cores.secundario },
-                  ]}
+                  style={[styles.calculationText, { color: cores.secundario }]}
                 >
-                  {meses} {meses === 1 ? "mês" : "meses"} ×
-                  R$ {Number(livroSelecionado.valor).toFixed(2)} ={" "}
+                  {meses} {meses === 1 ? "mês" : "meses"} × R${" "}
+                  {Number(livroSelecionado.valor).toFixed(2)} ={" "}
                   <Text
                     style={{
-                      color: saldoInsuficiente
-                        ? cores.vermelho
-                        : cores.laranja,
+                      color: saldoInsuficiente ? cores.vermelho : cores.laranja,
                       fontWeight: "800",
                     }}
                   >
@@ -1629,33 +1420,19 @@ export default function Inicio() {
                 </Text>
               )}
 
-            {saldoInsuficiente &&
-              inserir_valor !== "" &&
-              meses > 0 && (
-                <Text
-                  style={[
-                    styles.balanceMessage,
-                    { color: cores.vermelho },
-                  ]}
-                >
-                  Saldo insuficiente. Você possui R${" "}
-                  {creditoAtual.toFixed(2)} de crédito.
-                </Text>
-              )}
+            {saldoInsuficiente && inserir_valor !== "" && meses > 0 && (
+              <Text style={[styles.balanceMessage, { color: cores.vermelho }]}>
+                Saldo insuficiente. Você possui R$ {creditoAtual.toFixed(2)} de
+                crédito.
+              </Text>
+            )}
 
-            {!saldoInsuficiente &&
-              inserir_valor !== "" &&
-              meses > 0 && (
-                <Text
-                  style={[
-                    styles.balanceMessage,
-                    { color: "#25A66A" },
-                  ]}
-                >
-                  Saldo após aluguel: R${" "}
-                  {(creditoAtual - totalAluguel).toFixed(2)}
-                </Text>
-              )}
+            {!saldoInsuficiente && inserir_valor !== "" && meses > 0 && (
+              <Text style={[styles.balanceMessage, { color: "#25A66A" }]}>
+                Saldo após aluguel: R${" "}
+                {(creditoAtual - totalAluguel).toFixed(2)}
+              </Text>
+            )}
 
             <TouchableOpacity
               style={[
@@ -1681,21 +1458,14 @@ export default function Inicio() {
               onPress={confirmarAluguel}
             >
               <Text style={styles.rentButtonText}>
-                {carregando
-                  ? "Processando..."
-                  : "Confirmar aluguel"}
+                {carregando ? "Processando..." : "Confirmar aluguel"}
               </Text>
             </TouchableOpacity>
 
             {carregando && (
-              <Text
-                style={[
-                  styles.processingText,
-                  { color: cores.secundario },
-                ]}
-              >
-                Se a conexão cair, a solicitação continuará
-                aguardando a internet.
+              <Text style={[styles.processingText, { color: cores.secundario }]}>
+                Se a conexão cair, a solicitação continuará aguardando a
+                internet.
               </Text>
             )}
           </View>
@@ -1720,101 +1490,56 @@ export default function Inicio() {
             ]}
           >
             <View style={styles.menuHeading}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: cores.texto },
-                ]}
-              >
+              <Text style={[styles.sectionTitle, { color: cores.texto }]}>
                 Menu
               </Text>
 
-              <TouchableOpacity
-                onPress={() => setMenuVisible(false)}
-              >
-                <Image
-                  source={Fechar}
-                  style={{ width: 24, height: 24 }}
-                />
+              <TouchableOpacity onPress={() => setMenuVisible(false)}>
+                <Image source={Fechar} style={{ width: 24, height: 24 }} />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.menuLink,
-                { borderColor: cores.borda },
-              ]}
+              style={[styles.menuLink, { borderColor: cores.laranja }]}
               onPress={() => setMenuVisible(false)}
             >
-              <Text style={{ color: cores.texto }}>
-                ⌂   Início
-              </Text>
+              <Text style={{ color: cores.laranja }}>⌂   Início</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.menuLink,
-                { borderColor: cores.borda },
-              ]}
+              style={[styles.menuLink, { borderColor: cores.borda }]}
               onPress={() => {
                 setMenuVisible(false);
-
-                if (usuario && token) {
-                  navigation.navigate(
-                    "LivrosAlugados",
-                    { usuario, token }
-                  );
-                }
+                irMeusLivros();
               }}
             >
-              <Text style={{ color: cores.texto }}>
-                ▣   Meus Livros
-              </Text>
+              <Text style={{ color: cores.texto }}>▣   Meus Livros</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.menuLink,
-                { borderColor: cores.borda },
-              ]}
+              style={[styles.menuLink, { borderColor: cores.borda }]}
               onPress={() => {
                 setMenuVisible(false);
-
-                Alert.alert(
-                  "Favoritos",
-                  "A tela de favoritos ainda não está conectada."
-                );
+                irPerfil();
               }}
             >
-              <Text style={{ color: cores.texto }}>
-                ♡   Favoritos
-              </Text>
+              <Text style={{ color: cores.texto }}>👤   Perfil</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.menuLink,
-                { borderColor: cores.borda },
-              ]}
+              style={[styles.menuLink, { borderColor: cores.borda }]}
               onPress={() =>
-                setTema((atual) =>
-                  atual === "dark" ? "light" : "dark"
-                )
+                setTema((atual) => (atual === "dark" ? "light" : "dark"))
               }
             >
               <Text style={{ color: cores.texto }}>
-                {isDark
-                  ? "☀  Tema claro"
-                  : "☾  Tema escuro"}
+                {isDark ? "☀  Tema claro" : "☾  Tema escuro"}
               </Text>
             </TouchableOpacity>
 
             {isInstallable && (
               <TouchableOpacity
-                style={[
-                  styles.menuLink,
-                  { borderColor: cores.borda },
-                ]}
+                style={[styles.menuLink, { borderColor: cores.borda }]}
                 onPress={() => {
                   setMenuVisible(false);
                   install();
@@ -1827,18 +1552,13 @@ export default function Inicio() {
             )}
 
             <TouchableOpacity
-              style={[
-                styles.menuLink,
-                { borderColor: cores.vermelho },
-              ]}
+              style={[styles.menuLink, { borderColor: cores.vermelho }]}
               onPress={() => {
                 setMenuVisible(false);
                 logout();
               }}
             >
-              <Text style={{ color: cores.vermelho }}>
-                Sair
-              </Text>
+              <Text style={{ color: cores.vermelho }}>Sair</Text>
             </TouchableOpacity>
           </View>
         </View>

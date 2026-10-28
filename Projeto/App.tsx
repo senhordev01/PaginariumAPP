@@ -5,6 +5,7 @@ import Inicio_Adm from './Pagina_Adm';
 import Login from './Login';
 import Inicio from './Pagina_Inicial';
 import LivrosAlugados from './Livros_Alugados';
+import Perfil from './Perfil';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -44,6 +45,11 @@ type RootStackParamList = {
   };
 
   LivrosAlugados: {
+    usuario: Usuario;
+    token: string;
+  };
+
+  Perfil: {
     usuario: Usuario;
     token: string;
   };
@@ -113,6 +119,15 @@ export default function App() {
       ? 'Inicio_Adm'
       : 'Inicio';
 
+  // Parâmetros iniciais das telas de usuário comum.
+  const paramsUsuario =
+    sessao && sessao.usuario.tipo !== 'admin'
+      ? {
+          usuario: sessao.usuario,
+          token: sessao.token,
+        }
+      : undefined;
+
   return (
     <>
       <StatusBar style="dark" />
@@ -124,14 +139,7 @@ export default function App() {
           <Stack.Screen
             name="Inicio"
             component={Inicio}
-            initialParams={
-              sessao && sessao.usuario.tipo !== 'admin'
-                ? {
-                    usuario: sessao.usuario,
-                    token: sessao.token,
-                  }
-                : undefined
-            }
+            initialParams={paramsUsuario}
             options={{
               headerShown: false,
               title: 'Pagina Inicial',
@@ -181,17 +189,20 @@ export default function App() {
           <Stack.Screen
             name="LivrosAlugados"
             component={LivrosAlugados}
-            initialParams={
-              sessao && sessao.usuario.tipo !== 'admin'
-                ? {
-                    usuario: sessao.usuario,
-                    token: sessao.token,
-                  }
-                : undefined
-            }
+            initialParams={paramsUsuario}
             options={{
               headerShown: false,
               title: 'Livros Alugados',
+            }}
+          />
+
+          <Stack.Screen
+            name="Perfil"
+            component={Perfil}
+            initialParams={paramsUsuario}
+            options={{
+              headerShown: false,
+              title: 'Perfil',
             }}
           />
         </Stack.Navigator>
