@@ -132,6 +132,13 @@ export default function LivrosAlugados() {
         },
       });
 
+      // Token vencido: limpa a sessão e volta para o login
+      if (res.status === 401 || res.status === 403) {
+        await AsyncStorage.multiRemove(["token", "usuario"]);
+        navigation.navigate("Login");
+        return;
+      }
+
       if (!res.ok) {
         throw new Error("Não foi possível carregar os aluguéis.");
       }
@@ -161,7 +168,7 @@ export default function LivrosAlugados() {
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [navigation]);
 
   useFocusEffect(
     useCallback(() => {

@@ -14,10 +14,16 @@ import {
   StatusBar,
 } from "react-native";
 
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  autenticarBiometria,
+  biometriaDisponivel,
+  lerCredenciais,
+  removerCredenciais,
+} from "../Biometria";
 
 type RootStackParamList = {
   Login: undefined;
@@ -82,6 +88,7 @@ export default function Login() {
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrarConta, setLembrarConta] = useState(true);
+  const [bioPronta, setBioPronta] = useState(false);
 
   useEffect(() => {
     async function carregarContaLembrada() {
@@ -104,6 +111,43 @@ export default function Login() {
     carregarContaLembrada();
   }, []);
 
+  // Mostra o botão de biometria só no Android, com biometria cadastrada e ativada no Perfil.
+  useFocusEffect(
+    useCallback(() => {
+      async function verificarBiometria() {
+        if (Platform.OS !== "android") {
+          setBioPronta(false);
+          return;
+        }
+
+        const [disponivel, credenciais] = await Promise.all([
+          biometriaDisponivel(),
+          lerCredenciais(),
+        ]);
+
+        setBioPronta(disponivel && credenciais !== null);
+      }
+
+      verificarBiometria();
+    }, [])
+  );
+
+  async function loginBiometrico(): Promise<void> {
+    if (carregando) return;
+
+    const credenciais = await lerCredenciais();
+
+    if (!credenciais) {
+      setBioPronta(false);
+      return;
+    }
+
+    const ok = await autenticarBiometria("Entre no Paginarium com sua biometria");
+    if (!ok) return;
+
+    await realizarLogin(credenciais.email, credenciais.senha, true);
+  }
+
   async function login(): Promise<void> {
     if (carregando) return;
 
@@ -121,6 +165,14 @@ export default function Login() {
       return;
     }
 
+    await realizarLogin(emailLimpo, senha);
+  }
+
+  async function realizarLogin(
+    emailLimpo: string,
+    senhaUsada: string,
+    viaBiometria = false
+  ): Promise<void> {
     setCarregando(true);
 
     try {
@@ -131,7 +183,7 @@ export default function Login() {
         },
         body: JSON.stringify({
           email: emailLimpo,
-          senha,
+          senha: senhaUsada,
         }),
       });
 
@@ -139,9 +191,22 @@ export default function Login() {
       let data: LoginResponse = {};
 
       try {
-        data = texto ? JSON.parse(texto) : {};
+        // A API devolve erros como texto JSON (ex.: "E-mail ou senha incorretos.")
+        const lido = texto ? JSON.parse(texto) : {};
+        data = typeof lido === "string" ? { message: lido } : lido;
       } catch {
         data = { message: texto };
+      }
+
+      // A senha guardada para a biometria deixou de valer (ex.: senha alterada).
+      if (viaBiometria && response.status === 401) {
+        await removerCredenciais();
+        setBioPronta(false);
+        setErro(
+          "Sua senha mudou. Entre com e-mail e senha e ative a biometria novamente no Perfil."
+        );
+        setModal(true);
+        return;
       }
 
       if (!response.ok) {
@@ -351,6 +416,18 @@ export default function Login() {
                     </Text>
                   )}
                 </TouchableOpacity>
+                {bioPronta && (
+                  <TouchableOpacity
+                    style={estilo.botaoBiometria}
+                    onPress={loginBiometrico}
+                    disabled={carregando}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={estilo.textoBiometria}>
+                      🔐  Entrar com biometria
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={estilo.divisorContainer}>
@@ -562,6 +639,21 @@ const estilo = StyleSheet.create({
   },
   botaoDesabilitado: {
     opacity: 0.7,
+  },
+  botaoBiometria: {
+    width: "100%",
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CORES.vermelho,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  textoBiometria: {
+    color: CORES.vermelho,
+    fontSize: 15,
+    fontWeight: "800",
   },
   carregandoContainer: {
     flexDirection: "row",
